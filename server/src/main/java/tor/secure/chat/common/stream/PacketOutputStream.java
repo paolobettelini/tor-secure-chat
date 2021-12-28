@@ -1,4 +1,4 @@
-package tor.secure.chat.utils.stream;
+package tor.secure.chat.common.stream;
 
 import java.io.IOException;
 import java.io.OutputStream;

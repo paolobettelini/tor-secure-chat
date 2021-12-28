@@ -1,9 +1,9 @@
 package tor.secure.chat.protocol.packets;
 
-import static tor.secure.chat.utils.byteutils.ByteUtils.*;
+import static tor.secure.chat.common.byteutils.ByteUtils.*;
 
+import tor.secure.chat.common.byteutils.Offset;
 import tor.secure.chat.protocol.Protocol;
-import tor.secure.chat.utils.byteutils.Offset;
 
 public class LoginPacket {
     

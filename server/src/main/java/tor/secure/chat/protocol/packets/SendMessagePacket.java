@@ -1,9 +1,9 @@
 package tor.secure.chat.protocol.packets;
 
-import static tor.secure.chat.utils.byteutils.ByteUtils.*;
+import static tor.secure.chat.common.byteutils.ByteUtils.*;
 
+import tor.secure.chat.common.byteutils.Offset;
 import tor.secure.chat.protocol.Protocol;
-import tor.secure.chat.utils.byteutils.Offset;
 
 public class SendMessagePacket {
     
@@ -29,7 +29,7 @@ public class SendMessagePacket {
         byte[] packet = new byte[receiver.length() + message.length + 3];
         Offset offset = new Offset();
 
-        writeByte(packet, Protocol.MESSAGE_SENT, offset);
+        writeByte(packet, Protocol.SEND_MESSAGE, offset);
         writeString(packet, receiver, offset);
         writeBlob(packet, message, offset);
 

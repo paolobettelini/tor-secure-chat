@@ -1,4 +1,4 @@
-package tor.secure.chat.utils.byteutils;
+package tor.secure.chat.common.byteutils;
 
 public class Offset {
 

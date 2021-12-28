@@ -3,16 +3,24 @@ package tor.secure.chat.server;
 import java.io.IOException;
 import java.net.Socket;
 
+import tor.secure.chat.common.Message;
+import tor.secure.chat.common.User;
+import tor.secure.chat.common.stream.PacketInputStream;
+import tor.secure.chat.common.stream.PacketOutputStream;
 import tor.secure.chat.protocol.Protocol;
+import tor.secure.chat.protocol.packets.ErrorPacket;
 import tor.secure.chat.protocol.packets.LoginPacket;
 import tor.secure.chat.protocol.packets.RegisterPacket;
-import tor.secure.chat.utils.stream.PacketInputStream;
-import tor.secure.chat.utils.stream.PacketOutputStream;
+import tor.secure.chat.protocol.packets.RequestPublicKeyPacket;
+import tor.secure.chat.protocol.packets.SendMessagePacket;
+import tor.secure.chat.protocol.packets.ServeMessagesPacket;
+import tor.secure.chat.protocol.packets.ServePGPKeysPacket;
+import tor.secure.chat.protocol.packets.ServePublicKeyPacket;
 
 public class Connection extends Thread {
 
     private final Socket client;
-    private Server server;
+    private final Server server;
     private PacketInputStream in;
     private PacketOutputStream out;
 
@@ -42,26 +50,109 @@ public class Connection extends Thread {
         }
     }
 
-    public void processPacket(byte[] data) {
+    void sendPacket(byte[] packet) {
+        try {
+            out.writePacket(packet);
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+
+    void sendError(byte code) {
+        sendPacket(ErrorPacket.create(code));
+    }
+
+    private void processPacket(byte[] data) {
         switch (data[0]) {
-            case Protocol.REGISTER -> {
-                RegisterPacket packet = new RegisterPacket(data);
-                
-                // if already exists
-                // send error code
+            case Protocol.REGISTER -> processRegisterPacket(data);
+            case Protocol.LOGIN -> processLoginPacket(data);
+            case Protocol.SEND_MESSAGE -> processSendMessagePacket(data);
+            case Protocol.REQUEST_PUB_KEY -> processRequestPublicKeyPacket(data);
+        }
+    }
 
-                // if username is invalid
-                // return
+    private void processRequestPublicKeyPacket(byte[] data) {
+        RequestPublicKeyPacket packet = new RequestPublicKeyPacket(data);
 
-                // add to database
-            }
-            case Protocol.LOGIN -> {
+        if (!server.databaseManager.isUsernameInUse(packet.getUsername())) {
+            sendError(ErrorPacket.USER_NOT_FOUND);
+            return;
+        }
 
-            }
-            case Protocol.MESSAGE_SENT -> {
+        User user = server.databaseManager.getUser(packet.getUsername());
 
+        sendPacket(ServePublicKeyPacket.create(user.publicKey()));
+    }
+
+    private void processSendMessagePacket(byte[] data) {
+        if (username == null) {
+            return; // not logged in
+        }
+
+        SendMessagePacket packet = new SendMessagePacket(data);
+
+        Message message = new Message(username, packet.getReceiver(), System.currentTimeMillis(), packet.getMessage());
+
+        server.forwardPacket(ServeMessagesPacket.create(message), packet.getReceiver());
+        
+        server.databaseManager.storeMessage(message); // only if receiver is not online
+    }
+
+    private void processLoginPacket(byte[] data) {
+        LoginPacket packet = new LoginPacket(data);
+
+        User user = server.databaseManager.getUser(packet.getUsername());
+
+        byte[] inputPassword = packet.getPassword();
+        byte[] actualPassword = user.password();
+
+        if (inputPassword.length != actualPassword.length) {
+            sendError(ErrorPacket.WRONG_PASSWORD);
+            return;
+        }
+
+        for (int i = 0; i < actualPassword.length; i++) {
+            if (inputPassword[i] != actualPassword[i]) {
+                sendError(ErrorPacket.WRONG_PASSWORD);
+                return;
             }
         }
+
+        login(packet.getUsername());
+        sendPacket(ServePGPKeysPacket.create(user.publicKey(), user.privateKey()));
+    }
+
+    private void processRegisterPacket(byte[] data) {
+        RegisterPacket packet = new RegisterPacket(data);
+
+        if (server.databaseManager.isUsernameInUse(packet.getUsername())) {
+            sendError(ErrorPacket.USERNAME_ALREADY_EXISTS);
+            return;
+        }
+    
+        if (packet.getUsername().length() > 25) {// && regex &&
+            return;
+        }
+
+        login(packet.getUsername());
+        
+        // send pgp keys
+        server.databaseManager.registerUser(username, packet.getPassword(), packet.getPublicKey(), packet.getPrivateKey());
+
+        // send messages
+        Message[] messages = server.databaseManager.getMessagesFor(username);
+        sendPacket(ServeMessagesPacket.create(messages));
+
+        // delete messages from db
+    }
+
+    private void login(String username) {
+        if (this.username != null) {
+            server.removeUser(username);
+        }
+
+        this.username = username;
+        server.addUser(username, this); // notify server
     }
 
 }

@@ -1,4 +1,4 @@
-package tor.secure.chat.utils.byteutils;
+package tor.secure.chat.common.byteutils;
 
 import java.net.InetSocketAddress;
 import java.util.UUID;

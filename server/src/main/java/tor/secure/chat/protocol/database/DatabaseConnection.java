@@ -2,13 +2,14 @@ package tor.secure.chat.protocol.database;
 
 import java.sql.Connection;
 import java.sql.DriverManager;
+import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
 
 public class DatabaseConnection {
 
-	private Connection connect = null;
+	private Connection connection = null;
 	private Statement statement = null;
 
 	public DatabaseConnection(String host, String port, String user, String database, String password) {
@@ -21,13 +22,13 @@ public class DatabaseConnection {
 		}
 		
 		try {
-			connect = DriverManager.getConnection("jdbc:mysql://" + host + ":" + port + "/" + database + "?" + "user=" + user + "&password=" + password);
+			connection = DriverManager.getConnection("jdbc:mysql://" + host + ":" + port + "/" + database + "?" + "user=" + user + "&password=" + password);
 		} catch (SQLException e) {
 			e.printStackTrace();
 		}
 		
 		try {
-			statement = connect.createStatement(
+			statement = connection.createStatement(
 				ResultSet.TYPE_SCROLL_SENSITIVE, 
 				ResultSet.CONCUR_UPDATABLE);
 		} catch (SQLException e) {
@@ -48,6 +49,16 @@ public class DatabaseConnection {
 	public ResultSet query(String query) {
 		try {
 			return statement.executeQuery(query);
+		} catch (SQLException e) {
+			e.printStackTrace();
+		}
+
+		return null;
+	}
+
+	public PreparedStatement prepareStatement(String sql) {
+		try {
+			return connection.prepareStatement(sql);
 		} catch (SQLException e) {
 			e.printStackTrace();
 		}

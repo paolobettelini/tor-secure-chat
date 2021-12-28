@@ -40,12 +40,18 @@ public class Server {
         }
     }
 
-    public void addUser(String username, Connection connection) {
+    void addUser(String username, Connection connection) {
         users.put(username, connection);
     }
 
-    public void removeUser(String username) {
+    void removeUser(String username) {
         users.remove(username);
+    }
+
+    void forwardPacket(byte[] packet, String receiver) {
+        if (users.containsKey(receiver)) {
+            users.get(receiver).sendPacket(packet);
+        }
     }
 
     public Set<String> getUsers() {

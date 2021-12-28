@@ -1,6 +1,6 @@
 package tor.secure.chat.protocol.packets;
 
-import static tor.secure.chat.utils.byteutils.ByteUtils.*;
+import static tor.secure.chat.common.byteutils.ByteUtils.*;
 
 import tor.secure.chat.protocol.Protocol;
 
@@ -22,10 +22,10 @@ public class ErrorPacket {
     }
 
     public static byte[] create(byte code) {
-        byte[] packet = new byte[3];
+        byte[] packet = new byte[2];
 
         writeByte(packet, Protocol.ERROR, 0);
-        writeByte(packet, Protocol.ERROR, 1);
+        writeByte(packet, code, 1);
 
         return packet;
     }
