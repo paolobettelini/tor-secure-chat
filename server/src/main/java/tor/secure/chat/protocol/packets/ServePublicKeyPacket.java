@@ -17,7 +17,7 @@ public class ServePublicKeyPacket {
     }
 
     public static byte[] create(byte[] publicKey) {
-        byte[] packet = new byte[publicKey.length + 2];
+        byte[] packet = new byte[publicKey.length + 5];
 
         writeByte(packet, Protocol.SERVE_PUB_KEY, 0);
         writeBlob(packet, publicKey, 1);

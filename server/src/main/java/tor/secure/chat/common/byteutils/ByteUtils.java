@@ -726,10 +726,13 @@ public class ByteUtils {
      * @param offset the offset in the array
      */
     public static void writeBlob(byte[] data, byte[] value, int offset) {
-        data[offset] = (byte) value.length;
+        data[offset++] = (byte) ((value.length >> 000) & 0xFF);
+        data[offset++] = (byte) ((value.length >> 010) & 0xFF);
+        data[offset++] = (byte) ((value.length >> 020) & 0xFF);
+        data[offset++] = (byte) ((value.length >> 030) & 0xFF);
 
         for (int i = 0; i < value.length; i++) {
-            data[offset + i + 1] = value[i];
+            data[offset++] = value[i];
         }
     }
 
@@ -740,11 +743,16 @@ public class ByteUtils {
      * @return byte[]
      */
     public static byte[] readBlob(byte[] data, int offset) {
-        int length = data[offset];
+        int length =
+            (data[offset++] << 000) |
+            (data[offset++] << 010) |
+            (data[offset++] << 020) |
+            (data[offset++] << 030);
+
         byte[] result = new byte[length];
 
         for (int i = 0; i < length; i++) {
-            result[i] = data[length + i + 1];
+            result[i] = data[offset++];
         }
 
         return result;
@@ -757,13 +765,15 @@ public class ByteUtils {
      * @param offset the offset in the array
      */
     public static void writeBlob(byte[] data, byte[] value, Offset offset) {
-        data[offset.getAndIncrement()] = (byte) value.length;
+        data[offset.getAndIncrement()] = (byte) ((value.length >> 000) & 0xFF);
+        data[offset.getAndIncrement()] = (byte) ((value.length >> 010) & 0xFF);
+        data[offset.getAndIncrement()] = (byte) ((value.length >> 020) & 0xFF);
+        data[offset.getAndIncrement()] = (byte) ((value.length >> 030) & 0xFF);
 
         for (int i = 0; i < value.length; i++) {
             data[offset.getAndIncrement()] = value[i];
         }
     }
-
 
     /** 
      * @param data the byte array
@@ -771,7 +781,12 @@ public class ByteUtils {
      * @return byte[]
      */
     public static byte[] readBlob(byte[] data, Offset offset) {
-        int length = data[offset.getAndIncrement()];
+        int length =
+            (data[offset.getAndIncrement()] << 000) |
+            (data[offset.getAndIncrement()] << 010) |
+            (data[offset.getAndIncrement()] << 020) |
+            (data[offset.getAndIncrement()] << 030);
+        
         byte[] result = new byte[length];
 
         for (int i = 0; i < length; i++) {

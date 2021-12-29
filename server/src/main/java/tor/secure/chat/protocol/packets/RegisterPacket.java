@@ -38,7 +38,7 @@ public class RegisterPacket {
     }
 
     public static byte[] create(String username, byte[] password, byte[] publicKey, byte[] privateKey) {
-        byte[] packet = new byte[username.length() + password.length + 5];
+        byte[] packet = new byte[username.length() + password.length + publicKey.length + privateKey.length + 14];
         Offset offset = new Offset();
 
         writeByte(packet, Protocol.REGISTER, offset);

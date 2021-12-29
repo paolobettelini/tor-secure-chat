@@ -3,10 +3,13 @@ package tor.secure.chat.common.byteutils;
 import java.security.InvalidAlgorithmParameterException;
 import java.security.InvalidKeyException;
 import java.security.Key;
+import java.security.KeyFactory;
 import java.security.KeyPair;
 import java.security.KeyPairGenerator;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
+import java.security.spec.InvalidKeySpecException;
+import java.security.spec.X509EncodedKeySpec;
 
 import javax.crypto.BadPaddingException;
 import javax.crypto.Cipher;
@@ -21,6 +24,7 @@ public class CryptoUtils {
     private static Cipher aesCipher;
     private static Cipher rsaCipher;
     private static KeyPairGenerator rsaGenerator;
+    private static KeyFactory rsaKeyFactory;
 
     static {
         try {
@@ -29,6 +33,7 @@ public class CryptoUtils {
             rsaCipher = Cipher.getInstance("RSA");
             rsaGenerator = KeyPairGenerator.getInstance("RSA");
             rsaGenerator.initialize(4096);
+            rsaKeyFactory = KeyFactory.getInstance("RSA");
         } catch (NoSuchAlgorithmException | NoSuchPaddingException e) {
             e.printStackTrace();
         }
@@ -56,6 +61,26 @@ public class CryptoUtils {
 
     public static byte[] decryptRSA(byte[] input, Key key) {
         return operateRSACipher(input, key, Cipher.DECRYPT_MODE);
+    }
+
+    public static Key getPublicKey(byte[] publicKey) {
+        try {
+            return rsaKeyFactory.generatePublic(new X509EncodedKeySpec(publicKey));
+        } catch (InvalidKeySpecException e) {
+            e.printStackTrace();
+        }
+        
+        return null;
+    }
+
+    public static Key getPrivateKey(byte[] privateKey) {
+        try {
+            return rsaKeyFactory.generatePrivate(new X509EncodedKeySpec(privateKey));
+        } catch (InvalidKeySpecException e) {
+            e.printStackTrace();
+        }
+
+        return null;
     }
 
     private static byte[] operateAESCipher(byte[] input, byte[] key, int cipherMode) {

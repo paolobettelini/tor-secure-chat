@@ -16,24 +16,23 @@ public class DatabaseManager {
     
     private DatabaseConnection database;
 
-    private static final String SQL = """
-        CREATE SCHEMA IF NOT EXISTS chat;
-        USE chat;
-
+    private static final String TABLE1 = """
         CREATE TABLE IF NOT EXISTS user (
-            username VARCHAR(25),
+            username VARCHAR(25) PRIMARY KEY,
             pass BLOB,                          -- SHA256(SHA256(pass))
             pub_key BLOB,
             priv_key BLOB                       -- AES(SHA256(pass), priv_key)
         );
+    """;
 
+    private static final String TABLE2 = """
         CREATE TABLE IF NOT EXISTS message (
             sender_username VARCHAR(25),
             receiver_username VARCHAR(25),
-            'datetime' DATETIME,
-            msg BLOB                            -- RSA(pub_key, msg)
+            datetime DATETIME,
+            msg BLOB,                            -- RSA(pub_key, msg)
             FOREIGN KEY (sender_username)
-                REFERENCES user(username)
+                REFERENCES user(username),
             FOREIGN KEY (receiver_username)
                 REFERENCES user(username)
         );
@@ -42,7 +41,8 @@ public class DatabaseManager {
     public DatabaseManager(DatabaseConnection database) {
         this.database = database;
 
-        database.execute(SQL);
+        database.execute(TABLE1);
+        database.execute(TABLE2);
     }
 
     public boolean isUsernameInUse(String username) {
@@ -61,9 +61,9 @@ public class DatabaseManager {
             "INSERT INTO user VALUES ('" + username + "',?,?,?);");
 
         try {
-            statement.setBlob(2, new SerialBlob(password));
-            statement.setBlob(3, new SerialBlob(publicKey));
-            statement.setBlob(4, new SerialBlob(privateKey));
+            statement.setBlob(1, new SerialBlob(password));
+            statement.setBlob(2, new SerialBlob(publicKey));
+            statement.setBlob(3, new SerialBlob(privateKey)); //
 
             statement.execute();
         } catch (SQLException e) {

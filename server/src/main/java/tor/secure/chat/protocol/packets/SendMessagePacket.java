@@ -26,7 +26,7 @@ public class SendMessagePacket {
     }
 
     public static byte[] create(String receiver, byte[] message) {
-        byte[] packet = new byte[receiver.length() + message.length + 3];
+        byte[] packet = new byte[receiver.length() + message.length + 6];
         Offset offset = new Offset();
 
         writeByte(packet, Protocol.SEND_MESSAGE, offset);

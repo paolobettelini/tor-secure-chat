@@ -27,7 +27,7 @@ public record Message(String sender, String receiver, long timestamp, byte[] mes
     }
 
     public int computeSpace() {
-        return sender.length() + receiver.length() + message.length + 11;
+        return sender.length() + receiver.length() + message.length + 14;
     }
 
     public static int computeSpace(Message message) {

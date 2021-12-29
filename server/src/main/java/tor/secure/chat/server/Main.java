@@ -1,8 +1,6 @@
-package tor.secure.chat;
+package tor.secure.chat.server;
 
 import java.util.Scanner;
-
-import tor.secure.chat.server.Server;
 
 public class Main {
 

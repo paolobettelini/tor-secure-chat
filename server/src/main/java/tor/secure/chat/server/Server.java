@@ -9,13 +9,13 @@ import java.util.Set;
 import tor.secure.chat.protocol.database.DatabaseConnection;
 import tor.secure.chat.protocol.database.DatabaseManager;
 
-public class Server {
+public class Server extends Thread {
     
 	private static final String databaseHost = "192.168.1.111";
 	private static final String databasePort = "3306";
-	private static final String databaseUser = "admin";
+	private static final String databaseUser = "serveruser";
 	private static final String databaseName = "chat";
-	private static final String databasePassword = "Password&1";
+	private static final String databasePassword = "pass";
 
     private int port;
     private Map<String, Connection> users;
@@ -28,7 +28,8 @@ public class Server {
             new DatabaseConnection(databaseHost, databasePort, databaseUser, databaseName, databasePassword));
     }
 
-    public void start() {
+    @Override
+    public void run() {
         try (ServerSocket serverSocket = new ServerSocket(port)) {
             while (true) {
                 Socket client = serverSocket.accept();

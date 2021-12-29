@@ -26,7 +26,7 @@ public class LoginPacket {
     }
 
     public static byte[] create(String username, byte[] password) {
-        byte[] packet = new byte[username.length() + password.length + 3];
+        byte[] packet = new byte[username.length() + password.length + 6];
         Offset offset = new Offset();
 
         writeByte(packet, Protocol.LOGIN, offset);

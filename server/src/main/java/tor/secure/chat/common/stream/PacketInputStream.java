@@ -17,14 +17,15 @@ public class PacketInputStream {
         int b1 = in.read();
         int b2 = in.read();
         int b3 = in.read();
-        
-        int packetLength = b0 | (b1 << 8) | (b2 << 16) | (b3 << 24);
-        
-        byte[] packet = in.readNBytes(packetLength);
 
         if (b3 == -1) {
             hasEnded = true;
+            return null;
         }
+        
+        int packetLength = b0 | (b1 << 8) | (b2 << 16) | (b3 << 24);
+
+        byte[] packet = in.readNBytes(packetLength);
 
         return packet;
     }

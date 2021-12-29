@@ -32,18 +32,24 @@ public class Connection extends Thread {
     }
 
     @Override
-    public void start() {
+    public void run() {
         try (client) {
             this.in = new PacketInputStream(client.getInputStream());
             this.out = new PacketOutputStream(client.getOutputStream());
 
+            System.out.println("Listening to new connection");
             while (!in.hasEnded()) {
                 byte[] packet = in.nextPacket();
-                processPacket(packet);
+
+                if (packet != null) {
+                    processPacket(packet);
+                }
             }
         } catch (IOException e) {
             e.printStackTrace();
         }
+
+        System.out.println("No more listening connection");
 
         if (username != null) {
             server.removeUser(username);
@@ -124,7 +130,7 @@ public class Connection extends Thread {
 
     private void processRegisterPacket(byte[] data) {
         RegisterPacket packet = new RegisterPacket(data);
-
+        System.out.println("Received register packet");
         if (server.databaseManager.isUsernameInUse(packet.getUsername())) {
             sendError(ErrorPacket.USERNAME_ALREADY_EXISTS);
             return;
@@ -138,10 +144,16 @@ public class Connection extends Thread {
         
         // send pgp keys
         server.databaseManager.registerUser(username, packet.getPassword(), packet.getPublicKey(), packet.getPrivateKey());
+        
+        // send user data as confirmation
+        System.out.println("sending data to user");
+        sendPacket(ServePGPKeysPacket.create(packet.getPublicKey(), packet.getPrivateKey()));
 
         // send messages
         Message[] messages = server.databaseManager.getMessagesFor(username);
-        sendPacket(ServeMessagesPacket.create(messages));
+        if (messages.length != 0) {
+            sendPacket(ServeMessagesPacket.create(messages));
+        }
 
         // delete messages from db
     }

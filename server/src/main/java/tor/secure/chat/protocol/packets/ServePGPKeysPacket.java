@@ -26,7 +26,7 @@ public class ServePGPKeysPacket {
     }
 
     public static byte[] create(byte[] publicKey, byte[] privateKey) {
-        byte[] packet = new byte[publicKey.length + privateKey.length + 3];
+        byte[] packet = new byte[publicKey.length + privateKey.length + 9];
         Offset offset = new Offset();
 
         writeByte(packet, Protocol.SERVE_PGP_KEYS, offset);
