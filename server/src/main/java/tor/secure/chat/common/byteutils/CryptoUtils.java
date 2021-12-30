@@ -44,14 +44,6 @@ public class CryptoUtils {
         return sha256Digest.digest(digest);
     }
 
-    public static byte[] encryptAES(byte[] input, byte[] key) {
-        return operateAESCipher(input, key, Cipher.ENCRYPT_MODE);
-    }
-
-    public static byte[] decryptAES(byte[] input, byte[] key) {
-        return operateAESCipher(input, key, Cipher.DECRYPT_MODE);
-    }
-
     public static KeyPair generateKeyPair() {
         return rsaGenerator.generateKeyPair();
     }
@@ -84,19 +76,17 @@ public class CryptoUtils {
         return null;
     }
 
-    private static byte[] operateAESCipher(byte[] input, byte[] key, int cipherMode) {
-        byte[] leftPart = new byte[16];
-        byte[] rightPart = new byte[16];
+    public static byte[] encryptAES(byte[] data, byte[] key, byte[] iv) {
+        return operateAESCipher(data, key, iv, Cipher.ENCRYPT_MODE);
+    }
 
-        byte[] keyHash = SHA256(key);
+    public static byte[] decryptAES(byte[] data, byte[] key, byte[] iv) {
+        return operateAESCipher(data, key, iv, Cipher.DECRYPT_MODE);
+    }
 
-        for (int i = 0; i < 16; i++) {
-            leftPart[i] = keyHash[i];
-            rightPart[i] = keyHash[i + 16];
-        }
-
-        SecretKeySpec keySpec = new SecretKeySpec(leftPart, "AES");
-        IvParameterSpec ivSpec = new IvParameterSpec(rightPart);
+    private static byte[] operateAESCipher(byte[] input, byte[] key, byte[] iv, int cipherMode) {
+        SecretKeySpec keySpec = new SecretKeySpec(key, "AES");
+        IvParameterSpec ivSpec = new IvParameterSpec(iv);
 
         try {
             aesCipher.init(cipherMode, keySpec, ivSpec);

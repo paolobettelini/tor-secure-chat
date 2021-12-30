@@ -49,10 +49,14 @@ public class Server extends Thread {
         users.remove(username);
     }
 
-    void forwardPacket(byte[] packet, String receiver) {
-        if (users.containsKey(receiver)) {
+    boolean forwardPacket(byte[] packet, String receiver) {
+        boolean online = users.containsKey(receiver);
+        
+        if (online) {
             users.get(receiver).sendPacket(packet);
         }
+
+        return online;
     }
 
     public Set<String> getUsers() {

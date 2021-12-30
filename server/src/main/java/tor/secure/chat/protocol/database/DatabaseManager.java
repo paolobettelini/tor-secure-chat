@@ -4,6 +4,7 @@ import java.sql.Date;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.sql.Timestamp;
 import java.util.LinkedList;
 import java.util.List;
 
@@ -78,7 +79,8 @@ public class DatabaseManager {
         try {
             statement.setString(1, message.sender());
             statement.setString(2, message.receiver());
-            statement.setDate(3, new Date(message.timestamp()));
+            //statement.setDate(3, new Date(message.timestamp()));
+            statement.setTimestamp(3, new Timestamp(message.timestamp()));
             statement.setBlob(4, new SerialBlob(message.message()));
 
             statement.execute();
@@ -87,7 +89,7 @@ public class DatabaseManager {
         }
     }
     
-    public Message[] getMessagesFor(String username) {
+    public Message[] getMessagesFor(String username, boolean clear) {
         ResultSet result = database.query("SELECT * FROM message WHERE receiver_username='" + username + "';");
         
         try {
@@ -96,10 +98,15 @@ public class DatabaseManager {
             while (result.next()) {
                 String sender = result.getString(1);
                 String receiver = result.getString(2);
-                long timestamp = result.getDate(3).getTime();
+                //long timestamp = result.getDate(3).getTime();
+                long timestamp = result.getTimestamp(3).getTime();
                 byte[] message = result.getBytes(4);
                 
                 messages.add(new Message(sender, receiver, timestamp, message));
+            }
+
+            if (clear) {
+                database.execute("DELETE FROM message WHERE receiver_username='" + username + "';");
             }
 
             return messages.toArray(new Message[messages.size()]);

@@ -4,6 +4,8 @@ import java.io.IOException;
 import java.net.Socket;
 import java.security.Key;
 import java.security.KeyPair;
+import java.sql.Timestamp;
+import java.time.Instant;
 import java.util.concurrent.ArrayBlockingQueue;
 
 import tor.secure.chat.common.Message;
@@ -81,10 +83,11 @@ public class Client extends Thread {
 
         this.publicKey = CryptoUtils.getPublicKey(packet.getPublicKey());
         this.privateKey = CryptoUtils.getPrivateKey(
-            CryptoUtils.decryptAES(packet.getPrivateKey(), password)
+            //CryptoUtils.decryptAES(packet.getPrivateKey(), password)
+            Protocol.Crypto.decryptSymmetrically(packet.getPrivateKey(), password)
         );
 
-        System.out.println("received pgp keys");
+        System.out.println("Successfully logged in");
 
         // Login/register successful
     }
@@ -111,14 +114,12 @@ public class Client extends Thread {
     private void processServeMessagesPacket(byte[] data) {
         ServeMessagesPacket packet = new ServeMessagesPacket(data);
 
-        System.out.println("received messages packet");
-
         Message[] messages = packet.getMessages();
 
         for (Message message : messages) {
-            // Bad padding exception
-            String content = new String(CryptoUtils.decryptRSA(message.message(), privateKey));
-            System.out.println(message.sender() + " " + content);
+            //String content = new String(CryptoUtils.decryptRSA(message.message(), privateKey));
+            String content = new String(Protocol.Crypto.decryptAsimmetrically(message.message(), privateKey));
+            System.out.println(Instant.ofEpochMilli(message.timestamp()) + "[" + message.sender() + "] " + content);
         }
     }
 
@@ -132,22 +133,21 @@ public class Client extends Thread {
 
     public void login(String username, String password) {
         byte[] passwordBytes = password.getBytes();
-        sendLoginPacket(username, CryptoUtils.SHA256(CryptoUtils.SHA256(passwordBytes)));
+        sendLoginPacket(username, Protocol.Crypto.hash(passwordBytes));
 
         this.username = username;
         this.password = passwordBytes;
     }
 
     public void register(String username, String password) {
-        System.out.println("generating key pair");
         KeyPair pair = CryptoUtils.generateKeyPair();
 
         byte[] passwordBytes = password.getBytes();
-        byte[] passwordHash = CryptoUtils.SHA256(CryptoUtils.SHA256(passwordBytes));
+        byte[] passwordHash = Protocol.Crypto.hash(passwordBytes);
         byte[] publicKey = pair.getPublic().getEncoded();
-        byte[] privateKey = CryptoUtils.encryptAES(pair.getPrivate().getEncoded(), passwordBytes);
+        //byte[] privateKey = CryptoUtils.encryptAES(pair.getPrivate().getEncoded(), passwordBytes);
+        byte[] privateKey = Protocol.Crypto.encryptSymmetrically(pair.getPrivate().getEncoded(), passwordBytes);
 
-        System.out.println("sending register packet");
         sendRegisterPacket(username, passwordHash, publicKey, privateKey);
         this.username = username;
         this.password = passwordBytes;
@@ -166,17 +166,20 @@ public class Client extends Thread {
     }
 
     public void sendMessage(String receiver, String message) {
-        byte[] encryptedMessage = CryptoUtils.encryptAES(message.getBytes(), privateKey.getEncoded());
+        if (privateKey == null || username == null) {
+            return; // not logged in
+        }
+
+        Key publicKey = retrievePublicKey(receiver);
+
+        //byte[] encryptedMessage = CryptoUtils.encryptRSA(message.getBytes(), publicKey);
+        byte[] encryptedMessage = Protocol.Crypto.encryptAsimmetrically(message.getBytes(), publicKey);
         sendSendMessagePacket(receiver, encryptedMessage);
     }
 
     private void sendSendMessagePacket(String receiver, byte[] message) {
         sendPacket(SendMessagePacket.create(receiver, message));
     }
-
-        // non mandarsi le cose da soli
-        // mandaere senza essere loggati nullPointer privateKey.getEncoder
-        // mettere le cose nel db SOLO se non è on
-        // non controlla se quello a cui scrivi esiste
-
+    
+    // username, SHA256(SHA256(pass)), publicKey, AES_CBC(128left(SHA256(pass)), 128right(SHA256(pass)), privateKey)
 }

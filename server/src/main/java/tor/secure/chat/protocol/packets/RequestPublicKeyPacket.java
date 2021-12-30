@@ -20,7 +20,7 @@ public class RequestPublicKeyPacket {
     }
 
     public static byte[] create(String username) {
-        byte[] packet = new byte[username.length() + 1];
+        byte[] packet = new byte[username.length() + 2];
 
         writeByte(packet, Protocol.REQUEST_PUB_KEY, 0);
         writeString(packet, username, 1);

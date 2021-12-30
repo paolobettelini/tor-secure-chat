@@ -81,7 +81,7 @@ public class Connection extends Thread {
         RequestPublicKeyPacket packet = new RequestPublicKeyPacket(data);
 
         if (!server.databaseManager.isUsernameInUse(packet.getUsername())) {
-            sendError(ErrorPacket.USER_NOT_FOUND);
+            sendError(Protocol.USER_NOT_FOUND_ERROR);
             return;
         }
 
@@ -98,17 +98,25 @@ public class Connection extends Thread {
         System.out.println("Received msg send packet");
         SendMessagePacket packet = new SendMessagePacket(data);
 
+        if (packet.getReceiver().equals(username)) {
+            return;
+        }
+
+        if (!server.databaseManager.isUsernameInUse(packet.getReceiver())) {
+            sendError(Protocol.USER_NOT_FOUND_ERROR);
+            return;
+        }
+
         Message message = new Message(username, packet.getReceiver(), System.currentTimeMillis(), packet.getMessage());
 
-        server.forwardPacket(ServeMessagesPacket.create(message), packet.getReceiver());
+        if (!server.forwardPacket(ServeMessagesPacket.create(message), packet.getReceiver())) {
+            server.databaseManager.storeMessage(message); // store if receiver is offline
+        }
         
-        server.databaseManager.storeMessage(message); // only if receiver is not online
     }
 
     private void processLoginPacket(byte[] data) {
         LoginPacket packet = new LoginPacket(data);
-
-        System.out.println("received login packet");
 
         User user = server.databaseManager.getUser(packet.getUsername());
 
@@ -116,13 +124,13 @@ public class Connection extends Thread {
         byte[] actualPassword = user.password();
 
         if (inputPassword.length != actualPassword.length) {
-            sendError(ErrorPacket.WRONG_PASSWORD);
+            sendError(Protocol.WRONG_PASSWORD_ERROR);
             return;
         }
 
         for (int i = 0; i < actualPassword.length; i++) {
             if (inputPassword[i] != actualPassword[i]) {
-                sendError(ErrorPacket.WRONG_PASSWORD);
+                sendError(Protocol.WRONG_PASSWORD_ERROR);
                 return;
             }
         }
@@ -132,19 +140,17 @@ public class Connection extends Thread {
         sendPacket(ServePGPKeysPacket.create(user.publicKey(), user.privateKey()));
 
         // send messages
-        Message[] messages = server.databaseManager.getMessagesFor(username);
+        Message[] messages = server.databaseManager.getMessagesFor(username, true);
         if (messages.length != 0) {
             sendPacket(ServeMessagesPacket.create(messages));
         }
-
-        // delete messages from db
     }
 
     private void processRegisterPacket(byte[] data) {
         RegisterPacket packet = new RegisterPacket(data);
-        System.out.println("Received register packet");
+
         if (server.databaseManager.isUsernameInUse(packet.getUsername())) {
-            sendError(ErrorPacket.USERNAME_ALREADY_EXISTS);
+            sendError(Protocol.USERNAME_ALREADY_EXISTS_ERROR);
             return;
         }
     
