@@ -1,6 +1,5 @@
 package tor.secure.chat.protocol.database;
 
-import java.sql.Date;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
@@ -59,12 +58,13 @@ public class DatabaseManager {
 
     public void registerUser(String username, byte[] password, byte[] publicKey, byte[] privateKey) {
         PreparedStatement statement = database.prepareStatement(
-            "INSERT INTO user VALUES ('" + username + "',?,?,?);");
+            "INSERT INTO user VALUES (?,?,?,?);");
 
         try {
-            statement.setBlob(1, new SerialBlob(password));
-            statement.setBlob(2, new SerialBlob(publicKey));
-            statement.setBlob(3, new SerialBlob(privateKey)); //
+            statement.setString(1, username);
+            statement.setBlob(2, new SerialBlob(password));
+            statement.setBlob(3, new SerialBlob(publicKey));
+            statement.setBlob(4, new SerialBlob(privateKey));
 
             statement.execute();
         } catch (SQLException e) {
@@ -79,7 +79,6 @@ public class DatabaseManager {
         try {
             statement.setString(1, message.sender());
             statement.setString(2, message.receiver());
-            //statement.setDate(3, new Date(message.timestamp()));
             statement.setTimestamp(3, new Timestamp(message.timestamp()));
             statement.setBlob(4, new SerialBlob(message.message()));
 
@@ -98,7 +97,6 @@ public class DatabaseManager {
             while (result.next()) {
                 String sender = result.getString(1);
                 String receiver = result.getString(2);
-                //long timestamp = result.getDate(3).getTime();
                 long timestamp = result.getTimestamp(3).getTime();
                 byte[] message = result.getBytes(4);
                 
