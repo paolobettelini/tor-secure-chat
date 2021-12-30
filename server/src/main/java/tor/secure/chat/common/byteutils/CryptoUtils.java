@@ -9,6 +9,7 @@ import java.security.KeyPairGenerator;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.security.spec.InvalidKeySpecException;
+import java.security.spec.PKCS8EncodedKeySpec;
 import java.security.spec.X509EncodedKeySpec;
 
 import javax.crypto.BadPaddingException;
@@ -75,7 +76,7 @@ public class CryptoUtils {
 
     public static Key getPrivateKey(byte[] privateKey) {
         try {
-            return rsaKeyFactory.generatePrivate(new X509EncodedKeySpec(privateKey));
+            return rsaKeyFactory.generatePrivate(new PKCS8EncodedKeySpec(privateKey));
         } catch (InvalidKeySpecException e) {
             e.printStackTrace();
         }

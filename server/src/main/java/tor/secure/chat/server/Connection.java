@@ -95,6 +95,7 @@ public class Connection extends Thread {
             return; // not logged in
         }
 
+        System.out.println("Received msg send packet");
         SendMessagePacket packet = new SendMessagePacket(data);
 
         Message message = new Message(username, packet.getReceiver(), System.currentTimeMillis(), packet.getMessage());
@@ -106,6 +107,8 @@ public class Connection extends Thread {
 
     private void processLoginPacket(byte[] data) {
         LoginPacket packet = new LoginPacket(data);
+
+        System.out.println("received login packet");
 
         User user = server.databaseManager.getUser(packet.getUsername());
 
@@ -125,7 +128,16 @@ public class Connection extends Thread {
         }
 
         login(packet.getUsername());
+        System.out.println("sending pgp keys");
         sendPacket(ServePGPKeysPacket.create(user.publicKey(), user.privateKey()));
+
+        // send messages
+        Message[] messages = server.databaseManager.getMessagesFor(username);
+        if (messages.length != 0) {
+            sendPacket(ServeMessagesPacket.create(messages));
+        }
+
+        // delete messages from db
     }
 
     private void processRegisterPacket(byte[] data) {
@@ -148,19 +160,11 @@ public class Connection extends Thread {
         // send user data as confirmation
         System.out.println("sending data to user");
         sendPacket(ServePGPKeysPacket.create(packet.getPublicKey(), packet.getPrivateKey()));
-
-        // send messages
-        Message[] messages = server.databaseManager.getMessagesFor(username);
-        if (messages.length != 0) {
-            sendPacket(ServeMessagesPacket.create(messages));
-        }
-
-        // delete messages from db
     }
 
     private void login(String username) {
         if (this.username != null) {
-            server.removeUser(username);
+            server.removeUser(this.username);
         }
 
         this.username = username;

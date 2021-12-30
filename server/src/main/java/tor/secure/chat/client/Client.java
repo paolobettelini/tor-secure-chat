@@ -14,11 +14,19 @@ import tor.secure.chat.protocol.Protocol;
 import tor.secure.chat.protocol.packets.LoginPacket;
 import tor.secure.chat.protocol.packets.RegisterPacket;
 import tor.secure.chat.protocol.packets.RequestPublicKeyPacket;
+import tor.secure.chat.protocol.packets.SendMessagePacket;
 import tor.secure.chat.protocol.packets.ServeMessagesPacket;
 import tor.secure.chat.protocol.packets.ServePGPKeysPacket;
 import tor.secure.chat.protocol.packets.ServePublicKeyPacket;
 
 public class Client extends Thread {
+
+    public static void main(String[] args) {
+        var keyPair = CryptoUtils.generateKeyPair();
+        
+        CryptoUtils.getPublicKey(keyPair.getPublic().getEncoded());
+        CryptoUtils.getPrivateKey(keyPair.getPrivate().getEncoded());
+    }
 
     // Connection
     private String address;
@@ -70,7 +78,7 @@ public class Client extends Thread {
 
     private void processServePGPKeysPacket(byte[] data) {
         ServePGPKeysPacket packet = new ServePGPKeysPacket(data);
-        
+
         this.publicKey = CryptoUtils.getPublicKey(packet.getPublicKey());
         this.privateKey = CryptoUtils.getPrivateKey(
             CryptoUtils.decryptAES(packet.getPrivateKey(), password)
@@ -108,6 +116,7 @@ public class Client extends Thread {
         Message[] messages = packet.getMessages();
 
         for (Message message : messages) {
+            // Bad padding exception
             String content = new String(CryptoUtils.decryptRSA(message.message(), privateKey));
             System.out.println(message.sender() + " " + content);
         }
@@ -117,8 +126,16 @@ public class Client extends Thread {
         System.out.println("Received error packet");
     }
 
-    public void sendLoginPacket(String username, byte[] password) {
+    private void sendLoginPacket(String username, byte[] password) {
         sendPacket(LoginPacket.create(username, password));
+    }
+
+    public void login(String username, String password) {
+        byte[] passwordBytes = password.getBytes();
+        sendLoginPacket(username, CryptoUtils.SHA256(CryptoUtils.SHA256(passwordBytes)));
+
+        this.username = username;
+        this.password = passwordBytes;
     }
 
     public void register(String username, String password) {
@@ -147,5 +164,19 @@ public class Client extends Thread {
             e.printStackTrace();
         }
     }
+
+    public void sendMessage(String receiver, String message) {
+        byte[] encryptedMessage = CryptoUtils.encryptAES(message.getBytes(), privateKey.getEncoded());
+        sendSendMessagePacket(receiver, encryptedMessage);
+    }
+
+    private void sendSendMessagePacket(String receiver, byte[] message) {
+        sendPacket(SendMessagePacket.create(receiver, message));
+    }
+
+        // non mandarsi le cose da soli
+        // mandaere senza essere loggati nullPointer privateKey.getEncoder
+        // mettere le cose nel db SOLO se non è on
+        // non controlla se quello a cui scrivi esiste
 
 }

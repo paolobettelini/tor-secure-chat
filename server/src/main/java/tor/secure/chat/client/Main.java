@@ -4,17 +4,19 @@ import java.util.Scanner;
 
 public class Main {
     
-    public static void main(String[] args) {
+    public static void main(String[] _args) {
         Client client = new Client("localhost", 6666);
 
         client.start();
 
         try (var scanner = new Scanner(System.in)) {
             while (true) {
-                String cmd = scanner.nextLine();
+                String[] args = scanner.nextLine().split(" ");
 
-                switch (cmd) {
-                    case "register" -> client.register("paolo", "SONOFROCIO123_");
+                switch (args[0]) {
+                    case "register" -> client.register(args[1], args[2]);
+                    case "login" -> client.login(args[1], args[2]);
+                    case "send" -> client.sendMessage(args[1], args[2]);
                 }
             }
         }

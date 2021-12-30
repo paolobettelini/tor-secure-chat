@@ -94,7 +94,7 @@ public class DatabaseManager {
             List<Message> messages = new LinkedList<>();
 
             while (result.next()) {
-                String sender = result.getString(0);
+                String sender = result.getString(1);
                 String receiver = result.getString(2);
                 long timestamp = result.getDate(3).getTime();
                 byte[] message = result.getBytes(4);
@@ -111,9 +111,11 @@ public class DatabaseManager {
     }
     
     public User getUser(String username) {
-        ResultSet result = database.query("SELECT pass, pub_key, priv_key FROM user WHERE username='" + username + "';");
+        ResultSet result = database.query("SELECT pass, pub_key, priv_key FROM user WHERE username='" + username + "' LIMIT 1;");
         
         try {
+            result.first();
+            
             byte[] password = result.getBytes(1);
             byte[] publicKey = result.getBytes(2);
             byte[] privateKey = result.getBytes(3);

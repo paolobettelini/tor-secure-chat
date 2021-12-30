@@ -22,6 +22,7 @@ public class ErrorPacket {
     }
 
     public static byte[] create(byte code) {
+        System.out.println("Sending error code");
         byte[] packet = new byte[2];
 
         writeByte(packet, Protocol.ERROR, 0);
