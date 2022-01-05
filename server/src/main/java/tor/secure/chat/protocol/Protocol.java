@@ -3,6 +3,7 @@ package tor.secure.chat.protocol;
 import static tor.secure.chat.common.byteutils.CryptoUtils.*;
 
 import java.security.Key;
+import java.util.Base64;
 
 public class Protocol {
 
@@ -15,7 +16,7 @@ public class Protocol {
     public static final byte SERVE_PGP_KEYS                = 7;
     public static final byte SERVE_PUB_KEY                 = 8;
 
-    public static final byte CONNECTION_ERROR_ERROR        = 0; //
+    public static final byte CONNECTION_ERROR_ERROR        = 0;
     public static final byte USER_NOT_FOUND_ERROR          = 1;
     public static final byte USERNAME_ALREADY_EXISTS_ERROR = 2;
     public static final byte WRONG_PASSWORD_ERROR          = 3;
@@ -60,6 +61,42 @@ public class Protocol {
             }
 
             return decryptAES(data, leftPart, rightPart);
+        }
+
+        public static String encode(byte[] input) {
+            return Base64.getEncoder().encodeToString(input);
+        }
+
+        public static String computeFingerprint(byte[] publicKey1, byte[] publicKey2) {
+            StringBuilder builder = new StringBuilder(4);
+    
+            byte[] publicKey1Hash = SHA256(publicKey1);
+            byte[] publicKey2Hash = SHA256(publicKey2);
+    
+            byte[] merge = new byte[32];
+    
+            // merge publicKey1Hash and publicKey2Hash
+            for (int i = 0; i < 32; i++) {
+                merge[i] = (byte) (publicKey1Hash[i] ^ publicKey2Hash[i]);
+            }
+            
+            for (int i = 0; i < 4; i++) {
+                long v = 0;
+    
+                for (int j = 0; j < 8; j++) {
+                    v |= merge[j + (i << 3)] << (j << 3);
+                }
+
+                v ^= v >>> 1;
+                v <<= 1; // remove negative sign
+                v >>>= 1;
+                v %= Emojis.LIST.length;
+
+                builder.append(Emojis.LIST[(int) v]);
+            }
+    
+    
+            return builder.toString();
         }
     
     }

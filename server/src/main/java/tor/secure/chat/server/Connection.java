@@ -3,8 +3,8 @@ package tor.secure.chat.server;
 import java.io.IOException;
 import java.net.Socket;
 
-import tor.secure.chat.common.Message;
-import tor.secure.chat.common.User;
+import tor.secure.chat.common.byteutils.Message;
+import tor.secure.chat.common.byteutils.User;
 import tor.secure.chat.common.stream.PacketInputStream;
 import tor.secure.chat.common.stream.PacketOutputStream;
 import tor.secure.chat.protocol.Protocol;

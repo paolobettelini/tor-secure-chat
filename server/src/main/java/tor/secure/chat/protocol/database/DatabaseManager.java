@@ -9,8 +9,8 @@ import java.util.List;
 
 import javax.sql.rowset.serial.SerialBlob;
 
-import tor.secure.chat.common.Message;
-import tor.secure.chat.common.User;
+import tor.secure.chat.common.byteutils.Message;
+import tor.secure.chat.common.byteutils.User;
 
 public class DatabaseManager {
     
@@ -21,7 +21,7 @@ public class DatabaseManager {
             username VARCHAR(25) PRIMARY KEY,
             pass BLOB,                          -- SHA256(SHA256(pass))
             pub_key BLOB,
-            priv_key BLOB                       -- AES(SHA256(pass), priv_key)
+            priv_key BLOB                       -- AES/CBC(left128(SHA256(pass)), right128(SHA256(pass)), priv_key)
         );
     """;
 

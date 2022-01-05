@@ -4,14 +4,16 @@ import java.io.IOException;
 import java.net.Socket;
 import java.security.Key;
 import java.security.KeyPair;
-import java.time.Instant;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.concurrent.ArrayBlockingQueue;
 
-import tor.secure.chat.common.Message;
 import tor.secure.chat.common.byteutils.CryptoUtils;
+import tor.secure.chat.common.byteutils.Message;
 import tor.secure.chat.common.stream.PacketInputStream;
 import tor.secure.chat.common.stream.PacketOutputStream;
 import tor.secure.chat.protocol.Protocol;
+import tor.secure.chat.protocol.packets.ErrorPacket;
 import tor.secure.chat.protocol.packets.LoginPacket;
 import tor.secure.chat.protocol.packets.RegisterPacket;
 import tor.secure.chat.protocol.packets.RequestPublicKeyPacket;
@@ -20,14 +22,7 @@ import tor.secure.chat.protocol.packets.ServeMessagesPacket;
 import tor.secure.chat.protocol.packets.ServePGPKeysPacket;
 import tor.secure.chat.protocol.packets.ServePublicKeyPacket;
 
-public class Client extends Thread {
-
-    public static void main(String[] args) {
-        var keyPair = CryptoUtils.generateKeyPair();
-        
-        CryptoUtils.getPublicKey(keyPair.getPublic().getEncoded());
-        CryptoUtils.getPrivateKey(keyPair.getPrivate().getEncoded());
-    }
+public abstract class Client extends Thread {
 
     // Connection
     private String address;
@@ -41,14 +36,21 @@ public class Client extends Thread {
     private Key publicKey;
     private Key privateKey;
 
+    // Cache
+    private Map<String, Key> keysCache;
+
     // Wait for public PGP key
     private ArrayBlockingQueue<byte[]> blockingQueue;
 
     public Client(String address, int port) {
         this.address = address;
         this.port = port;
+        this.keysCache = new HashMap<>();
         this.blockingQueue = new ArrayBlockingQueue<>(1);
     }
+
+    abstract void onError(int statusCode);
+    abstract void onMessage(String sender, String message, long timestamp);
 
     @Override
     public void run() {
@@ -82,13 +84,10 @@ public class Client extends Thread {
 
         this.publicKey = CryptoUtils.getPublicKey(packet.getPublicKey());
         this.privateKey = CryptoUtils.getPrivateKey(
-            //CryptoUtils.decryptAES(packet.getPrivateKey(), password)
             Protocol.Crypto.decryptSymmetrically(packet.getPrivateKey(), password)
         );
 
         System.out.println("Successfully logged in");
-
-        // Login/register successful
     }
 
     private void processServePublicKeyPacket(byte[] data) {
@@ -98,11 +97,19 @@ public class Client extends Thread {
     }
 
     public Key retrievePublicKey(String username) {
+        // take from cache
+        if (keysCache.containsKey(username)) {
+            return keysCache.get(username);
+        }
+
+        // send request
         sendPacket(RequestPublicKeyPacket.create(username));
 
         try {
             byte[] bytes = blockingQueue.take();
-            return CryptoUtils.getPublicKey(bytes);
+            Key key = CryptoUtils.getPublicKey(bytes);
+            keysCache.put(username, key);
+            return key;
         } catch (InterruptedException e) {
             e.printStackTrace();
         }
@@ -116,14 +123,15 @@ public class Client extends Thread {
         Message[] messages = packet.getMessages();
 
         for (Message message : messages) {
-            //String content = new String(CryptoUtils.decryptRSA(message.message(), privateKey));
             String content = new String(Protocol.Crypto.decryptAsimmetrically(message.message(), privateKey));
-            System.out.println(Instant.ofEpochMilli(message.timestamp()) + "[" + message.sender() + "] " + content);
+            onMessage(message.sender(), content, message.timestamp());
         }
     }
 
-    private void processErrorPacket(byte[] packet) {
-        System.out.println("Received error packet");
+    private void processErrorPacket(byte[] data) {
+        ErrorPacket packet = new ErrorPacket(data);
+
+        onError(packet.statusCode());
     }
 
     private void sendLoginPacket(String username, byte[] password) {
@@ -144,7 +152,6 @@ public class Client extends Thread {
         byte[] passwordBytes = password.getBytes();
         byte[] passwordHash = Protocol.Crypto.hash(passwordBytes);
         byte[] publicKey = pair.getPublic().getEncoded();
-        //byte[] privateKey = CryptoUtils.encryptAES(pair.getPrivate().getEncoded(), passwordBytes);
         byte[] privateKey = Protocol.Crypto.encryptSymmetrically(pair.getPrivate().getEncoded(), passwordBytes);
 
         sendRegisterPacket(username, passwordHash, publicKey, privateKey);
@@ -171,13 +178,24 @@ public class Client extends Thread {
 
         Key publicKey = retrievePublicKey(receiver);
 
-        //byte[] encryptedMessage = CryptoUtils.encryptRSA(message.getBytes(), publicKey);
         byte[] encryptedMessage = Protocol.Crypto.encryptAsimmetrically(message.getBytes(), publicKey);
         sendSendMessagePacket(receiver, encryptedMessage);
     }
 
     private void sendSendMessagePacket(String receiver, byte[] message) {
         sendPacket(SendMessagePacket.create(receiver, message));
+    }
+
+    public String getChatFingerprint(String interlocutor) {
+        return Protocol.Crypto.computeFingerprint(publicKey.getEncoded(), retrievePublicKey(interlocutor).getEncoded());
+    }
+
+    public Key getPublicKey() {
+        return publicKey;
+    }
+
+    public Key getPrivateKey() {
+        return privateKey;
     }
     
     // username, SHA256(SHA256(pass)), publicKey, AES_CBC(128left(SHA256(pass)), 128right(SHA256(pass)), privateKey)

@@ -1,6 +1,4 @@
-package tor.secure.chat.common;
-
-import tor.secure.chat.common.byteutils.Offset;
+package tor.secure.chat.common.byteutils;
 
 import static tor.secure.chat.common.byteutils.ByteUtils.*;
 

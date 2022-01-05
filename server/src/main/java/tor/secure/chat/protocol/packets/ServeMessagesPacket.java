@@ -2,7 +2,7 @@ package tor.secure.chat.protocol.packets;
 
 import static tor.secure.chat.common.byteutils.ByteUtils.*;
 
-import tor.secure.chat.common.Message;
+import tor.secure.chat.common.byteutils.Message;
 import tor.secure.chat.common.byteutils.Offset;
 import tor.secure.chat.protocol.Protocol;
 
