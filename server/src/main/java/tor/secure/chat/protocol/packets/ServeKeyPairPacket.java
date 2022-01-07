@@ -5,12 +5,12 @@ import static tor.secure.chat.common.byteutils.ByteUtils.*;
 import tor.secure.chat.common.byteutils.Offset;
 import tor.secure.chat.protocol.Protocol;
 
-public class ServePGPKeysPacket {
+public class ServeKeyPairPacket {
     
     private byte[] publicKey;
     private byte[] privateKey;
 
-    public ServePGPKeysPacket(byte[] packet) {
+    public ServeKeyPairPacket(byte[] packet) {
         Offset offset = new Offset(1);
 
         this.publicKey = readBlob(packet, offset);

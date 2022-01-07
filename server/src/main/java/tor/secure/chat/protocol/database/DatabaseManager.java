@@ -9,8 +9,8 @@ import java.util.List;
 
 import javax.sql.rowset.serial.SerialBlob;
 
-import tor.secure.chat.common.byteutils.Message;
-import tor.secure.chat.common.byteutils.User;
+import tor.secure.chat.common.byteutils.MessageData;
+import tor.secure.chat.common.byteutils.UserData;
 
 public class DatabaseManager {
     
@@ -72,7 +72,7 @@ public class DatabaseManager {
         }
     }
     
-    public void storeMessage(Message message) {
+    public void storeMessage(MessageData message) {
         PreparedStatement statement = database.prepareStatement(
             "INSERT INTO message VALUES (?,?,?,?);");
 
@@ -88,11 +88,11 @@ public class DatabaseManager {
         }
     }
     
-    public Message[] getMessagesFor(String username, boolean clear) {
+    public MessageData[] getMessagesFor(String username, boolean clear) {
         ResultSet result = database.query("SELECT * FROM message WHERE receiver_username='" + username + "';");
         
         try {
-            List<Message> messages = new LinkedList<>();
+            List<MessageData> messages = new LinkedList<>();
 
             while (result.next()) {
                 String sender = result.getString(1);
@@ -100,14 +100,14 @@ public class DatabaseManager {
                 long timestamp = result.getTimestamp(3).getTime();
                 byte[] message = result.getBytes(4);
                 
-                messages.add(new Message(sender, receiver, timestamp, message));
+                messages.add(new MessageData(sender, receiver, timestamp, message));
             }
 
             if (clear) {
                 database.execute("DELETE FROM message WHERE receiver_username='" + username + "';");
             }
 
-            return messages.toArray(new Message[messages.size()]);
+            return messages.toArray(new MessageData[messages.size()]);
         } catch (SQLException e) {
             e.printStackTrace();
         }
@@ -115,7 +115,7 @@ public class DatabaseManager {
         return null;
     }
     
-    public User getUser(String username) {
+    public UserData getUser(String username) {
         ResultSet result = database.query("SELECT pass, pub_key, priv_key FROM user WHERE username='" + username + "' LIMIT 1;");
         
         try {
@@ -125,7 +125,7 @@ public class DatabaseManager {
             byte[] publicKey = result.getBytes(2);
             byte[] privateKey = result.getBytes(3);
 
-            return new User(username, password, publicKey, privateKey);
+            return new UserData(username, password, publicKey, privateKey);
         } catch (SQLException e) {
             e.printStackTrace();
         }

@@ -3,7 +3,6 @@ package tor.secure.chat.protocol;
 import static tor.secure.chat.common.byteutils.CryptoUtils.*;
 
 import java.security.Key;
-import java.util.Base64;
 
 public class Protocol {
 
@@ -15,14 +14,31 @@ public class Protocol {
     public static final byte SERVE_MESSAGES                = 6;
     public static final byte SERVE_PGP_KEYS                = 7;
     public static final byte SERVE_PUB_KEY                 = 8;
+    public static final byte REQUEST_NON_REPUDIATION_PROOF = 9;
+    public static final byte SERVE_NON_REPUDIATION_PROOF   = 10;
 
-    public static final byte CONNECTION_ERROR_ERROR        = 0;
+    public static final byte CONNECTION_ERROR              = 0;
     public static final byte USER_NOT_FOUND_ERROR          = 1;
     public static final byte USERNAME_ALREADY_EXISTS_ERROR = 2;
     public static final byte WRONG_PASSWORD_ERROR          = 3;
+    public static final byte ALREADY_LOGGED_ERROR          = 4;
 
     public class Crypto {
     
+        public static byte[] salt(byte[] password, byte[] username) {
+            byte[] result = new byte[password.length + username.length];
+
+            for (int i = 0; i < username.length; i++) {
+                result[i] = username[i];
+            }
+
+            for (int i = 0; i < password.length; i++) {
+                result[i + username.length] = password[i];
+            }
+
+            return result;
+        }
+
         public static byte[] hash(byte[] digest) {
             return SHA256(SHA256(digest));
         }
@@ -63,8 +79,8 @@ public class Protocol {
             return decryptAES(data, leftPart, rightPart);
         }
 
-        public static String encode(byte[] input) {
-            return Base64.getEncoder().encodeToString(input);
+        public static byte[] saltPassword(byte[] password) {
+            return null;
         }
 
         public static String computeFingerprint(byte[] publicKey1, byte[] publicKey2) {
@@ -94,7 +110,6 @@ public class Protocol {
 
                 builder.append(Emojis.LIST[(int) v]);
             }
-    
     
             return builder.toString();
         }

@@ -49,14 +49,25 @@ public class Server extends Thread {
         users.remove(username);
     }
 
+    boolean isUserOnline(String username) {
+        return users.containsKey(username);
+    }
+
     boolean forwardPacket(byte[] packet, String receiver) {
-        boolean online = users.containsKey(receiver);
+        boolean sent = isUserOnline(receiver);
         
-        if (online) {
-            users.get(receiver).sendPacket(packet);
+        if (sent) {
+            var user = users.get(receiver);
+
+            if (sent &= user.isAuthenticated()) {
+                users.get(receiver).sendPacket(packet);
+                System.out.println("Forwarding message ");
+            } else {
+                System.out.println("Not forwaring :)");
+            }
         }
 
-        return online;
+        return sent;
     }
 
     public Set<String> getUsers() {

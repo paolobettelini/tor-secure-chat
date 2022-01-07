@@ -4,22 +4,26 @@ import java.io.IOException;
 import java.net.Socket;
 import java.security.Key;
 import java.security.KeyPair;
+import java.security.PrivateKey;
+import java.security.PublicKey;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.ArrayBlockingQueue;
 
 import tor.secure.chat.common.byteutils.CryptoUtils;
-import tor.secure.chat.common.byteutils.Message;
+import tor.secure.chat.common.byteutils.MessageData;
 import tor.secure.chat.common.stream.PacketInputStream;
 import tor.secure.chat.common.stream.PacketOutputStream;
 import tor.secure.chat.protocol.Protocol;
 import tor.secure.chat.protocol.packets.ErrorPacket;
 import tor.secure.chat.protocol.packets.LoginPacket;
 import tor.secure.chat.protocol.packets.RegisterPacket;
+import tor.secure.chat.protocol.packets.RequestNonRepudiationProofPacket;
 import tor.secure.chat.protocol.packets.RequestPublicKeyPacket;
 import tor.secure.chat.protocol.packets.SendMessagePacket;
 import tor.secure.chat.protocol.packets.ServeMessagesPacket;
-import tor.secure.chat.protocol.packets.ServePGPKeysPacket;
+import tor.secure.chat.protocol.packets.ServeNonRepudiationProofPacket;
+import tor.secure.chat.protocol.packets.ServeKeyPairPacket;
 import tor.secure.chat.protocol.packets.ServePublicKeyPacket;
 
 public abstract class Client extends Thread {
@@ -33,8 +37,7 @@ public abstract class Client extends Thread {
     // Account
     private String username;
     private byte[] password;
-    private Key publicKey;
-    private Key privateKey;
+    private KeyPair keyPair;
 
     // Cache
     private Map<String, Key> keysCache;
@@ -68,6 +71,9 @@ public abstract class Client extends Thread {
         } catch (IOException e) {
             e.printStackTrace();
         }
+
+        // Nothing happened :)
+        System.gc();
     }
 
     private void processPacket(byte[] packet) {
@@ -76,16 +82,32 @@ public abstract class Client extends Thread {
             case Protocol.SERVE_MESSAGES -> processServeMessagesPacket(packet);
             case Protocol.SERVE_PGP_KEYS -> processServePGPKeysPacket(packet);
             case Protocol.SERVE_PUB_KEY -> processServePublicKeyPacket(packet);
+            case Protocol.REQUEST_NON_REPUDIATION_PROOF -> processRequestNonRepudiationProofPacket(packet);
         }
     }
 
-    private void processServePGPKeysPacket(byte[] data) {
-        ServePGPKeysPacket packet = new ServePGPKeysPacket(data);
+    private void processRequestNonRepudiationProofPacket(byte[] data) {
+        RequestNonRepudiationProofPacket packet = new RequestNonRepudiationProofPacket(data);
 
-        this.publicKey = CryptoUtils.getPublicKey(packet.getPublicKey());
-        this.privateKey = CryptoUtils.getPrivateKey(
+        byte[] signature = CryptoUtils.sign(packet.getNonce(), keyPair.getPrivate());
+
+        sendPacket(ServeNonRepudiationProofPacket.create(signature));
+    }
+
+    private void processServePGPKeysPacket(byte[] data) {
+        ServeKeyPairPacket packet = new ServeKeyPairPacket(data);
+
+        PublicKey publicKey = CryptoUtils.getPublicKey(packet.getPublicKey());
+        PrivateKey privateKey = CryptoUtils.getPrivateKey(
             Protocol.Crypto.decryptSymmetrically(packet.getPrivateKey(), password)
         );
+
+        this.keyPair = new KeyPair(publicKey, privateKey);
+        
+        if (!CryptoUtils.isKeyPairValid(keyPair)) {
+            System.out.println("Invalid key pair! The server might be trying a MITM attack");            
+            return;
+        }
 
         System.out.println("Successfully logged in");
     }
@@ -120,10 +142,10 @@ public abstract class Client extends Thread {
     private void processServeMessagesPacket(byte[] data) {
         ServeMessagesPacket packet = new ServeMessagesPacket(data);
 
-        Message[] messages = packet.getMessages();
+        MessageData[] messages = packet.getMessages();
 
-        for (Message message : messages) {
-            String content = new String(Protocol.Crypto.decryptAsimmetrically(message.message(), privateKey));
+        for (MessageData message : messages) {
+            String content = new String(Protocol.Crypto.decryptAsimmetrically(message.message(), keyPair.getPrivate()));
             onMessage(message.sender(), content, message.timestamp());
         }
     }
@@ -140,7 +162,7 @@ public abstract class Client extends Thread {
 
     public void login(String username, String password) {
         byte[] passwordBytes = password.getBytes();
-        sendLoginPacket(username, Protocol.Crypto.hash(passwordBytes));
+        sendLoginPacket(username, Protocol.Crypto.hash(Protocol.Crypto.salt(passwordBytes, username.getBytes())));
 
         this.username = username;
         this.password = passwordBytes;
@@ -150,7 +172,7 @@ public abstract class Client extends Thread {
         KeyPair pair = CryptoUtils.generateKeyPair();
 
         byte[] passwordBytes = password.getBytes();
-        byte[] passwordHash = Protocol.Crypto.hash(passwordBytes);
+        byte[] passwordHash = Protocol.Crypto.hash(Protocol.Crypto.salt(passwordBytes, username.getBytes()));
         byte[] publicKey = pair.getPublic().getEncoded();
         byte[] privateKey = Protocol.Crypto.encryptSymmetrically(pair.getPrivate().getEncoded(), passwordBytes);
 
@@ -172,7 +194,7 @@ public abstract class Client extends Thread {
     }
 
     public void sendMessage(String receiver, String message) {
-        if (privateKey == null || username == null) {
+        if (keyPair == null || username == null) {
             return; // not logged in
         }
 
@@ -187,15 +209,11 @@ public abstract class Client extends Thread {
     }
 
     public String getChatFingerprint(String interlocutor) {
-        return Protocol.Crypto.computeFingerprint(publicKey.getEncoded(), retrievePublicKey(interlocutor).getEncoded());
+        return Protocol.Crypto.computeFingerprint(keyPair.getPublic().getEncoded(), retrievePublicKey(interlocutor).getEncoded());
     }
 
-    public Key getPublicKey() {
-        return publicKey;
-    }
-
-    public Key getPrivateKey() {
-        return privateKey;
+    public KeyPair getKeyPair() {
+        return keyPair;
     }
     
     // username, SHA256(SHA256(pass)), publicKey, AES_CBC(128left(SHA256(pass)), 128right(SHA256(pass)), privateKey)

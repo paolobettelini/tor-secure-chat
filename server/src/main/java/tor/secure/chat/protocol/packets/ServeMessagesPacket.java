@@ -2,30 +2,30 @@ package tor.secure.chat.protocol.packets;
 
 import static tor.secure.chat.common.byteutils.ByteUtils.*;
 
-import tor.secure.chat.common.byteutils.Message;
+import tor.secure.chat.common.byteutils.MessageData;
 import tor.secure.chat.common.byteutils.Offset;
 import tor.secure.chat.protocol.Protocol;
 
 public class ServeMessagesPacket {
     
-    private Message[] messages;
+    private MessageData[] messages;
 
     public ServeMessagesPacket(byte[] packet) {
         Offset offset = new Offset(1);
 
         int n = readByte(packet, offset) & 0xFF;
-        messages = new Message[n];
+        messages = new MessageData[n];
 
         for (int i = 0; i < n; i++) {
-            messages[i] = Message.read(packet, offset);
+            messages[i] = MessageData.read(packet, offset);
         }
     }
 
-    public Message[] getMessages() {
+    public MessageData[] getMessages() {
         return messages;
     }
 
-    public static byte[] create(Message... messages) {
+    public static byte[] create(MessageData... messages) {
         int packetLength = 2;
 
         for (int i = 0; i < messages.length; i++) {

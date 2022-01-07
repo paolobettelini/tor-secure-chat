@@ -744,10 +744,10 @@ public class ByteUtils {
      */
     public static byte[] readBlob(byte[] data, int offset) {
         int length =
-            (data[offset++] << 000) |
-            (data[offset++] << 010) |
-            (data[offset++] << 020) |
-            (data[offset++] << 030);
+            ((data[offset++] & 0xFF) << 000) |
+            ((data[offset++] & 0xFF) << 010) |
+            ((data[offset++] & 0xFF) << 020) |
+            ((data[offset++] & 0xFF) << 030);
 
         byte[] result = new byte[length];
 
@@ -782,10 +782,10 @@ public class ByteUtils {
      */
     public static byte[] readBlob(byte[] data, Offset offset) {
         int length =
-            (data[offset.getAndIncrement()] << 000) |
-            (data[offset.getAndIncrement()] << 010) |
-            (data[offset.getAndIncrement()] << 020) |
-            (data[offset.getAndIncrement()] << 030);
+            ((data[offset.getAndIncrement()] & 0xFF) << 000) |
+            ((data[offset.getAndIncrement()] & 0xFF) << 010) |
+            ((data[offset.getAndIncrement()] & 0xFF) << 020) |
+            ((data[offset.getAndIncrement()] & 0xFF) << 030);
         
         byte[] result = new byte[length];
 
