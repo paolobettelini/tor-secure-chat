@@ -12,11 +12,12 @@ public class PacketInputStream {
         this.in = in;
     }
 
-    public byte[] nextPacket() throws IOException {
+    public synchronized byte[] nextPacket() throws IOException {
         int b0 = in.read();
         int b1 = in.read();
         int b2 = in.read();
         int b3 = in.read();
+        //System.out.print("LENGTH|");
 
         if (b3 == -1) {
             hasEnded = true;
@@ -26,6 +27,7 @@ public class PacketInputStream {
         int packetLength = b0 | (b1 << 8) | (b2 << 16) | (b3 << 24);
 
         byte[] packet = in.readNBytes(packetLength);
+        //System.out.println("PACKET");
 
         return packet;
     }

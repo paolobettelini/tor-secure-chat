@@ -8,30 +8,44 @@ import tor.secure.chat.protocol.Protocol;
 public class SendMessagePacket {
     
     private String receiver;
+    private byte[] key;
     private byte[] message;
+    private byte[] signature;
 
     public SendMessagePacket(byte[] packet) {
         Offset offset = new Offset(1);
 
         this.receiver = readString(packet, offset);
+        this.key = readBlob(packet, offset);
         this.message = readBlob(packet, offset);
+        this.signature = readBlob(packet, offset);
     }
 
     public String getReceiver() {
         return receiver;
     }
 
+    public byte[] getKey() {
+        return key;
+    }
+
     public byte[] getMessage() {
         return message;
     }
 
-    public static byte[] create(String receiver, byte[] message) {
-        byte[] packet = new byte[receiver.length() + message.length + 6];
+    public byte[] getSignature() {
+        return signature;
+    }
+
+    public static byte[] create(String receiver, byte[] key, byte[] message, byte[] signature) {
+        byte[] packet = new byte[receiver.length() + key.length + message.length + signature.length + 14];
         Offset offset = new Offset();
 
         writeByte(packet, Protocol.SEND_MESSAGE, offset);
         writeString(packet, receiver, offset);
+        writeBlob(packet, key, offset);
         writeBlob(packet, message, offset);
+        writeBlob(packet, signature, offset);
 
         return packet;
     }

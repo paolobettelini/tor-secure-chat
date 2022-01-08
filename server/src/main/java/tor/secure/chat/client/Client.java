@@ -2,16 +2,16 @@ package tor.secure.chat.client;
 
 import java.io.IOException;
 import java.net.Socket;
-import java.security.Key;
 import java.security.KeyPair;
 import java.security.PrivateKey;
 import java.security.PublicKey;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.concurrent.ArrayBlockingQueue;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
 
-import tor.secure.chat.common.byteutils.CryptoUtils;
 import tor.secure.chat.common.byteutils.MessageData;
+import tor.secure.chat.common.concurrency.BlockingMap;
 import tor.secure.chat.common.stream.PacketInputStream;
 import tor.secure.chat.common.stream.PacketOutputStream;
 import tor.secure.chat.protocol.Protocol;
@@ -40,16 +40,16 @@ public abstract class Client extends Thread {
     private KeyPair keyPair;
 
     // Cache
-    private Map<String, Key> keysCache;
+    private Map<String, PublicKey> keysCache;
 
-    // Wait for public PGP key
-    private ArrayBlockingQueue<byte[]> blockingQueue;
+    // Wait for public keys
+    private BlockingMap<String, byte[]> blockingMap;
 
     public Client(String address, int port) {
         this.address = address;
         this.port = port;
         this.keysCache = new HashMap<>();
-        this.blockingQueue = new ArrayBlockingQueue<>(1);
+        this.blockingMap = new BlockingMap<>();
     }
 
     abstract void onError(int statusCode);
@@ -62,6 +62,10 @@ public abstract class Client extends Thread {
             out = new PacketOutputStream(socket.getOutputStream());
 
             while (!in.hasEnded()) {
+                if (isInterrupted()) {
+                    break;
+                }
+
                 byte[] packet = in.nextPacket();
 
                 if (packet != null) {
@@ -72,15 +76,14 @@ public abstract class Client extends Thread {
             e.printStackTrace();
         }
 
-        // Nothing happened :)
-        System.gc();
+        System.gc(); // Nothing happened :)
     }
 
     private void processPacket(byte[] packet) {
         switch (packet[0]) {
             case Protocol.ERROR -> processErrorPacket(packet);
             case Protocol.SERVE_MESSAGES -> processServeMessagesPacket(packet);
-            case Protocol.SERVE_PGP_KEYS -> processServePGPKeysPacket(packet);
+            case Protocol.SERVE_KEY_PAIR -> processServeKeyPairPacket(packet);
             case Protocol.SERVE_PUB_KEY -> processServePublicKeyPacket(packet);
             case Protocol.REQUEST_NON_REPUDIATION_PROOF -> processRequestNonRepudiationProofPacket(packet);
         }
@@ -89,22 +92,22 @@ public abstract class Client extends Thread {
     private void processRequestNonRepudiationProofPacket(byte[] data) {
         RequestNonRepudiationProofPacket packet = new RequestNonRepudiationProofPacket(data);
 
-        byte[] signature = CryptoUtils.sign(packet.getNonce(), keyPair.getPrivate());
+        byte[] signature = Protocol.Crypto.sign(packet.getNonce(), keyPair.getPrivate());
 
         sendPacket(ServeNonRepudiationProofPacket.create(signature));
     }
 
-    private void processServePGPKeysPacket(byte[] data) {
+    private void processServeKeyPairPacket(byte[] data) {
         ServeKeyPairPacket packet = new ServeKeyPairPacket(data);
 
-        PublicKey publicKey = CryptoUtils.getPublicKey(packet.getPublicKey());
-        PrivateKey privateKey = CryptoUtils.getPrivateKey(
+        PublicKey publicKey = Protocol.Crypto.getPublicKey(packet.getPublicKey());
+        PrivateKey privateKey = Protocol.Crypto.getPrivateKey(
             Protocol.Crypto.decryptSymmetrically(packet.getPrivateKey(), password)
         );
 
         this.keyPair = new KeyPair(publicKey, privateKey);
         
-        if (!CryptoUtils.isKeyPairValid(keyPair)) {
+        if (!Protocol.Crypto.isKeyPairValid(keyPair)) {
             System.out.println("Invalid key pair! The server might be trying a MITM attack");            
             return;
         }
@@ -115,38 +118,51 @@ public abstract class Client extends Thread {
     private void processServePublicKeyPacket(byte[] data) {
         ServePublicKeyPacket packet = new ServePublicKeyPacket(data);
 
-        blockingQueue.add(packet.getPublicKey());
+        blockingMap.put(packet.getUsername(), packet.getPublicKey());
     }
 
-    public Key retrievePublicKey(String username) {
+    public CompletableFuture<PublicKey> retrievePublicKey(String username) {
         // take from cache
         if (keysCache.containsKey(username)) {
-            return keysCache.get(username);
+            return CompletableFuture.completedFuture(keysCache.get(username));
         }
 
         // send request
         sendPacket(RequestPublicKeyPacket.create(username));
 
-        try {
-            byte[] bytes = blockingQueue.take();
-            Key key = CryptoUtils.getPublicKey(bytes);
-            keysCache.put(username, key);
-            return key;
-        } catch (InterruptedException e) {
-            e.printStackTrace();
-        }
+        return CompletableFuture.supplyAsync(() -> {
+            try {
+                byte[] bytes = blockingMap.get(username);
 
-        return null;
+                PublicKey key = Protocol.Crypto.getPublicKey(bytes);
+                
+                keysCache.put(username, key);
+                return key;
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
+    
+            return null;
+        });
     }
 
     private void processServeMessagesPacket(byte[] data) {
         ServeMessagesPacket packet = new ServeMessagesPacket(data);
 
         MessageData[] messages = packet.getMessages();
-
+        
         for (MessageData message : messages) {
-            String content = new String(Protocol.Crypto.decryptAsimmetrically(message.message(), keyPair.getPrivate()));
-            onMessage(message.sender(), content, message.timestamp());
+            // Verify signature
+            retrievePublicKey(message.sender()).thenAccept(senderPublicKey -> {
+                if (!Protocol.Crypto.verify(message.message(), message.signature(), senderPublicKey)) {
+                    System.out.println("Message with invalid signature from " + message.sender());
+                    return;
+                }
+                
+                byte[] key = Protocol.Crypto.decryptAsimmetrically(message.key(), keyPair.getPrivate());
+                byte[] content = Protocol.Crypto.decryptSymmetrically(message.message(), key);
+                onMessage(message.sender(), new String(content), message.timestamp());
+            });
         }
     }
 
@@ -169,7 +185,7 @@ public abstract class Client extends Thread {
     }
 
     public void register(String username, String password) {
-        KeyPair pair = CryptoUtils.generateKeyPair();
+        KeyPair pair = Protocol.Crypto.generateKeyPair();
 
         byte[] passwordBytes = password.getBytes();
         byte[] passwordHash = Protocol.Crypto.hash(Protocol.Crypto.salt(passwordBytes, username.getBytes()));
@@ -198,18 +214,30 @@ public abstract class Client extends Thread {
             return; // not logged in
         }
 
-        Key publicKey = retrievePublicKey(receiver);
-
-        byte[] encryptedMessage = Protocol.Crypto.encryptAsimmetrically(message.getBytes(), publicKey);
-        sendSendMessagePacket(receiver, encryptedMessage);
+        retrievePublicKey(receiver).thenAccept(receiverPublicKey -> {
+            byte[] randomPassword = Protocol.generateSecurePassword();
+            byte[] encryptedKey = Protocol.Crypto.encryptAsimmetrically(randomPassword, receiverPublicKey);
+            byte[] encryptedMessage = Protocol.Crypto.encryptSymmetrically(message.getBytes(), randomPassword);
+            byte[] signature = Protocol.Crypto.sign(encryptedMessage, keyPair.getPrivate());
+            sendSendMessagePacket(receiver, encryptedKey, encryptedMessage, signature);
+        });
     }
 
-    private void sendSendMessagePacket(String receiver, byte[] message) {
-        sendPacket(SendMessagePacket.create(receiver, message));
+    private void sendSendMessagePacket(String receiver, byte[] key, byte[] message, byte[] signature) {
+        sendPacket(SendMessagePacket.create(receiver, key, message, signature));
     }
 
-    public String getChatFingerprint(String interlocutor) {
-        return Protocol.Crypto.computeFingerprint(keyPair.getPublic().getEncoded(), retrievePublicKey(interlocutor).getEncoded());
+    public CompletableFuture<String> getChatFingerprint(String interlocutor) {
+        return CompletableFuture.supplyAsync(() -> {
+            PublicKey interlocutorPublicKey;
+            try {
+                interlocutorPublicKey = retrievePublicKey(interlocutor).get();
+            } catch (InterruptedException | ExecutionException e) {
+                return null;
+            }
+            return Protocol.Crypto.computeFingerprint(
+                keyPair.getPublic().getEncoded(), interlocutorPublicKey.getEncoded());
+        });
     }
 
     public KeyPair getKeyPair() {

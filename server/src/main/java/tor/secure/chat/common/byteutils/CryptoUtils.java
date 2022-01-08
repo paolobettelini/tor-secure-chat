@@ -52,7 +52,7 @@ public class CryptoUtils {
         }
     }
 
-    public static byte[] sign(byte[] data, PrivateKey privateKey) {
+    public static byte[] signSHA256withRSA(byte[] data, PrivateKey privateKey) {
         try {
             rsaSignature.initSign(privateKey);
             rsaSignature.update(data);
@@ -62,7 +62,7 @@ public class CryptoUtils {
         }
     }
 
-    public static boolean verify(byte[] data, byte[] signature, PublicKey publicKey) {
+    public static boolean verifySHA256withRSA(byte[] data, byte[] signature, PublicKey publicKey) {
         try {
             rsaSignature.initVerify(publicKey);
             rsaSignature.update(data);

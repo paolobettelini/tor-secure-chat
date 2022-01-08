@@ -5,7 +5,7 @@ import java.util.Scanner;
 
 public class Main {
     
-    public static void main(String[] _args) {
+    public static void main(String[] _args) throws Exception {
         Client client = new Client("localhost", 6666) {
 
             @Override
@@ -30,7 +30,8 @@ public class Main {
                     case "register" -> client.register(args[1], args[2]);
                     case "login" -> client.login(args[1], args[2]);
                     case "send" -> client.sendMessage(args[1], args[2]);
-                    case "fingerprint" -> System.out.println(client.getChatFingerprint(args[1]));
+                    case "fingerprint" -> System.out.println(client.getChatFingerprint(args[1]).get());
+                    case "pub" -> client.retrievePublicKey(args[1]);
                 }
             }
         }

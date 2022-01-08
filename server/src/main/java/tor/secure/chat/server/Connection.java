@@ -4,7 +4,6 @@ import java.io.IOException;
 import java.net.Socket;
 import java.security.PublicKey;
 
-import tor.secure.chat.common.byteutils.CryptoUtils;
 import tor.secure.chat.common.byteutils.MessageData;
 import tor.secure.chat.common.byteutils.UserData;
 import tor.secure.chat.common.stream.PacketInputStream;
@@ -99,8 +98,7 @@ public class Connection extends Thread {
         }
 
         UserData user = server.databaseManager.getUser(packet.getUsername());
-
-        sendPacket(ServePublicKeyPacket.create(user.publicKey()));
+        sendPacket(ServePublicKeyPacket.create(packet.getUsername(), user.publicKey()));
     }
 
     private void processSendMessagePacket(byte[] data) {
@@ -120,7 +118,7 @@ public class Connection extends Thread {
             return;
         }
 
-        MessageData message = new MessageData(username, packet.getReceiver(), System.currentTimeMillis(), packet.getMessage());
+        MessageData message = new MessageData(username, packet.getReceiver(), System.currentTimeMillis(), packet.getKey(), packet.getMessage(), packet.getSignature());
 
         if (!server.forwardPacket(ServeMessagesPacket.create(message), packet.getReceiver())) {
             server.databaseManager.storeMessage(message); // store if receiver is offline or isn't authenticated
@@ -131,6 +129,11 @@ public class Connection extends Thread {
         LoginPacket packet = new LoginPacket(data);
 
         UserData user = server.databaseManager.getUser(packet.getUsername());
+
+        if (user == null) {
+            sendError(Protocol.USER_NOT_FOUND_ERROR);
+            return;
+        }
 
         byte[] inputPassword = packet.getPassword();
         byte[] actualPassword = user.password();
@@ -157,9 +160,9 @@ public class Connection extends Thread {
         // send key
         sendPacket(ServeKeyPairPacket.create(user.publicKey(), user.privateKey()));
         
-        this.publicKey = CryptoUtils.getPublicKey(user.publicKey());
+        this.publicKey = Protocol.Crypto.getPublicKey(user.publicKey());
         
-        System.out.println("asking for authentication"); // ask for non-repudiation proof
+        // ask for non-repudiation proof
         this.authenticationNonce = RequestNonRepudiationProofPacket.randomNonce();
         sendPacket(RequestNonRepudiationProofPacket.create(authenticationNonce));
     }
@@ -168,7 +171,7 @@ public class Connection extends Thread {
         ServeNonRepudiationProofPacket packet = new ServeNonRepudiationProofPacket(data);
 
         byte[] signature = packet.getSignedNonce();
-        if (!CryptoUtils.verify(authenticationNonce, signature, publicKey)) {
+        if (!Protocol.Crypto.verify(authenticationNonce, signature, publicKey)) {
             try {
                 client.close();
             } catch (IOException e) {}
@@ -176,7 +179,6 @@ public class Connection extends Thread {
             return;
         }
 
-        System.out.println("User authenticated");
         authenticated = true;
 
         // send unread messages
@@ -195,7 +197,7 @@ public class Connection extends Thread {
             return;
         }
     
-        if (packet.getUsername().length() > 25) {// && regex &&
+        if (!Protocol.isUsernameValid(packet.getUsername())) {
             return;
         }
 
@@ -204,7 +206,7 @@ public class Connection extends Thread {
         // send key
         server.databaseManager.registerUser(username, packet.getPassword(), packet.getPublicKey(), packet.getPrivateKey());
         
-        this.publicKey = CryptoUtils.getPublicKey(packet.getPublicKey());
+        this.publicKey = Protocol.Crypto.getPublicKey(packet.getPublicKey());
 
         // send user data as confirmation
         System.out.println("sending data to user");
@@ -222,72 +224,3 @@ public class Connection extends Thread {
     }
 
 }
-
-/**
- 
-    Send to server
-    username, password, publicKey, privateKey
-
-    Problem 0
-    General security
-    Solution
-    Messages must not be persistent
-    Messages must be stored by the server only if the receiver is offline
-
-    Problem 1
-    The server knows the ip of the interlocutors
-    Solution:
-    Send everything through the Tor network
-
-    Problem 2
-    The server can decrypt messages using the privateKey
-    Solution:
-    Simmetrically encrypt the privateKey with the password
-    Problem 2.1
-    The server can decrypt the privateKey using the password
-    Solution:
-    Instead of sending the password, send the hash
-
-    Problem 3
-    Two identical password result in the same hash
-    Solution:
-    Salt the password with the username
-
-    Problem 4
-    Man-in-the-middle: the server could generate a key pair,
-    send his public key instead of request one and gain control over every message sent
-    Solution:
-    Out-of-band verification
-    Sender and receiver must bith compute a value using their publicKey and the other end's publicKey
-    such that f(publicKeyA, publicKeyB) = f(publicKeyB, publicKeyA)
-    This value is then converted into something readable (e.g. 4 emojis)
-    The interlocutors must then verify that they are the same
-    A user must must check if the keypair is valid
-
-    Problem 5
-    The exit node can sniff traffic data (e.g. sniff hash(password)):
-    - Can login with someone's elses account
-        - Delete the user unread messages
-        - Send messages pretending to be the user
-        (can't read incoming messages, therefore deleting them from the server)
-    Solution:
-    The server must send the user some random data to sign to prove that he has the private key
-
-    Problem 6
-    The server can send messages pretending to be somebody
-    Solution
-    Every message sent must be signed with the privateKey (and then verified by the receiver)
-
-    XXX authentication
-    XXX servepgp -> servekeypair
-    XXX salt password
-    XXX Se l'utente è già online e qualcuno prova a loggarsi?
-    Sign all messages
-    regex username check
-    usare Protocol.Crypto invece che cryptoutils
-    encrypt messages with AES with random password
-    prevent server exception
-
-    Don't include your username in your password
-    Don't send sensitive messages if the receiver is not online
- */

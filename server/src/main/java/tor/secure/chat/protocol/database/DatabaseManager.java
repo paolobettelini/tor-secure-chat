@@ -19,9 +19,9 @@ public class DatabaseManager {
     private static final String TABLE1 = """
         CREATE TABLE IF NOT EXISTS user (
             username VARCHAR(25) PRIMARY KEY,
-            pass BLOB,                          -- SHA256(SHA256(pass))
+            pass BLOB,
             pub_key BLOB,
-            priv_key BLOB                       -- AES/CBC(left128(SHA256(pass)), right128(SHA256(pass)), priv_key)
+            priv_key BLOB
         );
     """;
 
@@ -30,7 +30,9 @@ public class DatabaseManager {
             sender_username VARCHAR(25),
             receiver_username VARCHAR(25),
             datetime DATETIME,
-            msg BLOB,                            -- RSA(pub_key, msg)
+            msg_key BLOB,
+            msg BLOB,
+            msg_sig BLOB,
             FOREIGN KEY (sender_username)
                 REFERENCES user(username),
             FOREIGN KEY (receiver_username)
@@ -74,13 +76,15 @@ public class DatabaseManager {
     
     public void storeMessage(MessageData message) {
         PreparedStatement statement = database.prepareStatement(
-            "INSERT INTO message VALUES (?,?,?,?);");
+            "INSERT INTO message VALUES (?,?,?,?,?,?);");
 
         try {
             statement.setString(1, message.sender());
             statement.setString(2, message.receiver());
             statement.setTimestamp(3, new Timestamp(message.timestamp()));
-            statement.setBlob(4, new SerialBlob(message.message()));
+            statement.setBlob(4, new SerialBlob(message.key()));
+            statement.setBlob(5, new SerialBlob(message.message()));
+            statement.setBlob(6, new SerialBlob(message.signature()));
 
             statement.execute();
         } catch (SQLException e) {
@@ -98,9 +102,11 @@ public class DatabaseManager {
                 String sender = result.getString(1);
                 String receiver = result.getString(2);
                 long timestamp = result.getTimestamp(3).getTime();
-                byte[] message = result.getBytes(4);
+                byte[] key = result.getBytes(4);
+                byte[] message = result.getBytes(5);
+                byte[] signature = result.getBytes(6);
                 
-                messages.add(new MessageData(sender, receiver, timestamp, message));
+                messages.add(new MessageData(sender, receiver, timestamp, key, message, signature));
             }
 
             if (clear) {

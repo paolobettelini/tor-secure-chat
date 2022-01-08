@@ -29,7 +29,7 @@ public class ServeKeyPairPacket {
         byte[] packet = new byte[publicKey.length + privateKey.length + 9];
         Offset offset = new Offset();
 
-        writeByte(packet, Protocol.SERVE_PGP_KEYS, offset);
+        writeByte(packet, Protocol.SERVE_KEY_PAIR, offset);
         writeBlob(packet, publicKey, offset);
         writeBlob(packet, privateKey, offset);
 

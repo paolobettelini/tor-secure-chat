@@ -12,7 +12,7 @@ public class PacketOutputStream {
         this.out = out;
     }
 
-    public void writePacket(byte[] packet) throws IOException {
+    public synchronized void writePacket(byte[] packet) throws IOException {
         byte b0 = (byte) ((packet.length >> 0) & 0xFF);
         byte b1 = (byte) ((packet.length >> 8) & 0xFF);
         byte b2 = (byte) ((packet.length >> 16) & 0xFF);
