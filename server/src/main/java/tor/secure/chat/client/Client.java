@@ -73,7 +73,7 @@ public abstract class Client extends Thread {
                 }
             }
         } catch (IOException e) {
-            e.printStackTrace();
+            onError(Protocol.CONNECTION_ERROR);
         }
 
         System.gc(); // Nothing happened :)
@@ -155,7 +155,6 @@ public abstract class Client extends Thread {
             // Verify signature
             retrievePublicKey(message.sender()).thenAccept(senderPublicKey -> {
                 if (!Protocol.Crypto.verify(message.message(), message.signature(), senderPublicKey)) {
-                    System.out.println("Message with invalid signature from " + message.sender());
                     return;
                 }
                 
@@ -185,6 +184,11 @@ public abstract class Client extends Thread {
     }
 
     public void register(String username, String password) {
+        if (!Protocol.isUsernameValid(username)) {
+            onError(Protocol.INVALID_USERNAME_ERROR);
+            return;
+        }
+
         KeyPair pair = Protocol.Crypto.generateKeyPair();
 
         byte[] passwordBytes = password.getBytes();
@@ -215,7 +219,7 @@ public abstract class Client extends Thread {
         }
 
         retrievePublicKey(receiver).thenAccept(receiverPublicKey -> {
-            byte[] randomPassword = Protocol.generateSecurePassword();
+            byte[] randomPassword = Protocol.Crypto.generateSecurePassword();
             byte[] encryptedKey = Protocol.Crypto.encryptAsimmetrically(randomPassword, receiverPublicKey);
             byte[] encryptedMessage = Protocol.Crypto.encryptSymmetrically(message.getBytes(), randomPassword);
             byte[] signature = Protocol.Crypto.sign(encryptedMessage, keyPair.getPrivate());
@@ -243,6 +247,5 @@ public abstract class Client extends Thread {
     public KeyPair getKeyPair() {
         return keyPair;
     }
-    
-    // username, SHA256(SHA256(pass)), publicKey, AES_CBC(128left(SHA256(pass)), 128right(SHA256(pass)), privateKey)
+
 }
