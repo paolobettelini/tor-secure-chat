@@ -1,0 +1,30 @@
+plugins {
+    id 'application'
+}
+
+jar {
+    manifest {
+        attributes 'Main-Class': 'ch.bettelini.client.Main'
+    }
+
+    from {
+        duplicatesStrategy(DuplicatesStrategy.EXCLUDE)
+        configurations.runtimeClasspath.collect { it.isDirectory() ? it : zipTree(it) }
+    }
+}
+
+repositories {
+    mavenCentral()
+    maven {
+        url "https://plugins.gradle.org/m2/"
+    }
+}
+
+dependencies {
+    implementation project(':common')
+    implementation project(':protocol')
+}
+
+application {
+    mainClass = 'ch.bettelini.client.Main'
+}

@@ -1,0 +1,15 @@
+plugins {
+    id 'java'
+}
+
+repositories {
+    mavenCentral()
+    maven {
+        url "https://plugins.gradle.org/m2/"
+    }
+}
+
+dependencies {
+    //implementation 'org.bouncycastle:bcprov-jdk15on:1.70'
+    // OLD implementation 'org.bouncycastle:bcprov-jdk16:1.46'
+}

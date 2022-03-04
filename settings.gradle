@@ -1,9 +1,2 @@
-dependencyResolutionManagement {
-    repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
-    repositories {
-        google()
-        mavenCentral()
-    }
-}
-rootProject.name = "tor-secure-chat"
-include ':app'
+rootProject.name = 'secure-chat'
+include('client', 'common', 'protocol', 'server')
