@@ -4,6 +4,15 @@ import java.util.Scanner;
 
 public class Main {
 
+    /**
+     * 
+     * TODO
+     * Limitare il numero di messaggi
+     * Pacchetti per richiedere messaggi più vecchi
+     * 
+     * database dovrebbe essere in server/ e non protocol/
+     */
+
     public static void main(String[] args) {
         Server server = new Server(6666);
         server.start();

@@ -11,7 +11,7 @@ public interface ChatDatabase {
     
     public void storeMessage(MessageData message);
     
-    public MessageData[] getMessagesFor(String username, boolean clear);
+    public MessageData[] getMessagesFor(String username);
     
     public UserData getUser(String username);
 

@@ -86,7 +86,7 @@ public class ChatDatabaseImpl implements ChatDatabase {
         PreparedStatement statement = database.prepareStatement(
             "INSERT INTO message VALUES (?,?,?,?,?,?);");
 
-        try {
+            try {
             /*statement.setString(1, message.sender());
             statement.setString(2, message.receiver());
             statement.setTimestamp(3, new Timestamp(message.timestamp()));
@@ -108,8 +108,9 @@ public class ChatDatabaseImpl implements ChatDatabase {
     }
     
     @Override
-    public MessageData[] getMessagesFor(String username, boolean clear) {
-        ResultSet result = database.query("SELECT * FROM message WHERE receiver_username='" + username + "';");
+    public MessageData[] getMessagesFor(String username) {
+        ResultSet result = database.query(
+            "SELECT * FROM message WHERE receiver_username='" + username + "' OR sender_username='" + username + "';");
         
         try {
             List<MessageData> messages = new LinkedList<>();
@@ -123,10 +124,8 @@ public class ChatDatabaseImpl implements ChatDatabase {
                 byte[] signature = result.getBytes(6);
                 
                 messages.add(new MessageData(sender, receiver, timestamp, key, message, signature));
-            }
-
-            if (clear) { // TODO
-                database.execute("DELETE FROM message WHERE receiver_username='" + username + "';");
+                // TODO: limit amount of messages
+                // Packet to request older messages
             }
 
             return messages.toArray(new MessageData[messages.size()]);

@@ -3,13 +3,20 @@ package ch.bettelini.app.terminal;
 public abstract class TerminalView {
     
     private TerminalApplication app;
-    protected TerminalView parentView;
 
-    protected abstract void input(String input);
-    protected abstract void render();
+    protected TerminalView parentView;
+    
+    protected abstract void render(); // Draw view
+    protected abstract void input(String input); // User input
+    protected abstract void onDisplay(); // When this view is display
+    protected abstract void onConceal(); // When this view is concealed
 
     public void setParent(TerminalView parentView) {
         this.parentView = parentView;
+    }
+
+    public TerminalView getParentView() {
+        return parentView;
     }
     
     void setTerminalApplication(TerminalApplication app) {
@@ -49,8 +56,8 @@ public abstract class TerminalView {
         app.update();
     }
 
-    protected void update(TerminalView view) {
-        app.update(view);
+    protected boolean update(TerminalView view) {
+        return app.update(view);
     }
 
 }

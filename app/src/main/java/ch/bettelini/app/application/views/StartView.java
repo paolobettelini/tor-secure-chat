@@ -6,11 +6,16 @@ public class StartView extends TerminalView {
 
     private RegisterView registerView;
     private LoginView loginView;
+
+    public StartView(RegisterView registerView, LoginView loginView) {
+        this.registerView = registerView;
+        this.loginView = loginView;
+    }
     
     public void setRegisterView(RegisterView registerView) {
         this.registerView = registerView;
     }
-
+    
     public void setLoginView(LoginView loginView) {
         this.loginView = loginView;
     }
@@ -31,11 +36,21 @@ public class StartView extends TerminalView {
     @Override
     protected void input(String input) {
         switch (input.trim()) {
-            case "1", "login" -> super.setView(loginView);
-            case "2", "register" -> super.setView(registerView);
+            case "1", "login" -> super.setView(loginView, this);
+            case "2", "register" -> super.setView(registerView, this);
             case "exit" -> System.exit(0);
             default -> render();
         }
+    }
+
+    @Override
+    protected void onDisplay() {
+        
+    }
+
+    @Override
+    protected void onConceal() {
+        
     }
     
 }

@@ -1,5 +1,7 @@
 package ch.bettelini.app.application;
 
+import ch.bettelini.app.application.views.ChatView;
+import ch.bettelini.app.application.views.ContactView;
 import ch.bettelini.app.application.views.LoginView;
 import ch.bettelini.app.application.views.RegisterView;
 import ch.bettelini.app.application.views.StartView;
@@ -13,17 +15,18 @@ public class ChatApplication {
 
         var app = new TerminalApplication("\t[SECURE CHAT] - " + address + ":" + port);
 
-        var startView = new StartView();
-        var loginView = new LoginView(client);
-        var registerView = new RegisterView(client);
+        var chatView = new ChatView(client);
+        var contactView = new ContactView(client, chatView);
+        var loginView = new LoginView(client, contactView);
+        var registerView = new RegisterView(client, contactView);
+        var startView = new StartView(registerView, loginView);
 
         app.addView(startView);
         app.addView(loginView);
         app.addView(registerView);
+        app.addView(contactView);
+        app.addView(chatView);
 
-        startView.setLoginView(loginView);
-        startView.setRegisterView(registerView);
-        
         app.setView(startView);
 
         app.start();

@@ -106,7 +106,6 @@ public class Connection extends Thread {
             return; // not logged in
         }
 
-        System.out.println("Received msg send packet");
         SendMessagePacket packet = new SendMessagePacket(data);
 
         if (packet.getReceiver().equals(username)) {
@@ -120,9 +119,11 @@ public class Connection extends Thread {
 
         MessageData message = new MessageData(username, packet.getReceiver(), System.currentTimeMillis(), packet.getKey(), packet.getMessage(), packet.getSignature());
 
-        if (!server.forwardPacket(ServeMessagesPacket.create(message), packet.getReceiver())) {
-            server.databaseManager.storeMessage(message); // store if receiver is offline or isn't authenticated
-        }
+        // Try to contact
+        server.forwardPacket(ServeMessagesPacket.create(message), packet.getReceiver());
+        
+        // Store in db
+        server.databaseManager.storeMessage(message);
     }
 
     private void processLoginPacket(byte[] data) {
@@ -181,8 +182,8 @@ public class Connection extends Thread {
 
         authenticated = true;
 
-        // send unread messages
-        MessageData[] messages = server.databaseManager.getMessagesFor(username, true);
+        // send messages
+        MessageData[] messages = server.databaseManager.getMessagesFor(username);
         System.out.println("Messages to send; " + messages.length);
         if (messages.length != 0) {
             sendPacket(ServeMessagesPacket.create(messages));

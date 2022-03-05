@@ -63,7 +63,7 @@ public abstract class Client extends Thread {
     }
 
     protected abstract void onCode(int statusCode);
-    protected abstract void onMessage(String sender, String message, long timestamp);
+    protected abstract void onMessage(String sender, String receiver, String message, long timestamp);
 
     @Override
     public void run() {
@@ -174,7 +174,7 @@ public abstract class Client extends Thread {
                 
                 byte[] key = Protocol.Crypto.decryptAsimmetrically(message.key(), keyPair.getPrivate());
                 byte[] content = Protocol.Crypto.decryptSymmetrically(message.message(), key);
-                onMessage(message.sender(), new String(content), message.timestamp());
+                onMessage(message.sender(), message.receiver(), new String(content), message.timestamp());
             });
         }
     }
@@ -260,6 +260,10 @@ public abstract class Client extends Thread {
 
     public KeyPair getKeyPair() {
         return keyPair;
+    }
+
+    public String getUsername() {
+        return username;
     }
 
     public static boolean isUsernameValid(String username) {

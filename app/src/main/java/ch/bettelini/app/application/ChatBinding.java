@@ -1,13 +1,15 @@
 package ch.bettelini.app.application;
 
+import java.util.LinkedList;
+import java.util.List;
 import java.util.function.Consumer;
 
 import ch.bettelini.client.Client;
 
 public class ChatBinding extends Client {
 
-    private Consumer<Integer> onStatusCode;
-    private Consumer<Message> onMessage;
+    private List<Consumer<Integer>> statusCodeListeners = new LinkedList<>();
+    private List<Consumer<Message>> messageListeners = new LinkedList<>();
 
     public ChatBinding(String address, int port) {
         super(address, port);
@@ -15,20 +17,28 @@ public class ChatBinding extends Client {
 
     @Override
     protected void onCode(int statusCode) {
-        onStatusCode.accept(statusCode);
+        statusCodeListeners.forEach(consumer -> consumer.accept(statusCode));
     }
 
     @Override
-    protected void onMessage(String sender, String message, long timestamp) {
-        onMessage.accept(new Message(sender, message, timestamp));
+    protected void onMessage(String sender, String receiver, String message, long timestamp) {
+        messageListeners.forEach(consumer -> consumer.accept(new Message(sender, receiver, message, timestamp)));
     }
 
-    public void setOnStatusCode(Consumer<Integer> onStatusCode) {
-        this.onStatusCode = onStatusCode;
+    public void addStatusCodeListener(Consumer<Integer> onStatusCode) {
+        this.statusCodeListeners.add(onStatusCode);
     }
 
-    public void setOnMessage(Consumer<Message> onMessage) {
-        this.onMessage = onMessage;
+    public void addMessageListener(Consumer<Message> onMessage) {
+        this.messageListeners.add(onMessage);
+    }
+
+    public void removeStatusCodeListener(Consumer<Integer> onStatusCode) {
+        this.statusCodeListeners.remove(onStatusCode);
+    }
+
+    public void removeMessageListener(Consumer<Message> onMessage) {
+        this.messageListeners.remove(onMessage);
     }
 
     public static String statusCodeToString(int code) {

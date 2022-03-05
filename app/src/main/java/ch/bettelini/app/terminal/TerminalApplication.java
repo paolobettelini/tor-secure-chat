@@ -16,14 +16,18 @@ public class TerminalApplication {
     }
 
     public void setView(TerminalView view) {
+        if (currentView != null) {
+            currentView.onConceal();
+        }
+
         currentView = view;
-        view.render();
+        currentView.onDisplay();
+        currentView.render();
     }
 
     public void setView(TerminalView view, TerminalView parentView) {
-        currentView = view;
-        currentView.setParent(parentView);
-        currentView.render();
+        view.setParent(parentView);
+        setView(view);
     }
 
     public void start() {
@@ -42,10 +46,12 @@ public class TerminalApplication {
         }
     }
 
-    public void update(TerminalView view) {
+    public boolean update(TerminalView view) {
         if (currentView == view) {
             currentView.render();
         }
+        
+        return currentView == view;
     }
 
     void clear() {
