@@ -44,17 +44,17 @@ public class ContactView extends TerminalView {
         super.newLine();
         int i = 0;
         for (String contact : contacts.keySet()) {
-            super.println("\t" + i + ". " + contact);
+            super.println("\t" + i++ + ". " + contact);
         }
         printCursor();
     }
 
     private Consumer<Message> onMessage = message -> {
-        contacts.putIfAbsent(message.sender(), new LinkedList<>());
-        
         if (message.sender().equals(client.getUsername())) {
+            contacts.putIfAbsent(message.receiver(), new LinkedList<>());
             contacts.get(message.receiver()).add(message);
         } else {
+            contacts.putIfAbsent(message.sender(), new LinkedList<>());
             contacts.get(message.sender()).add(message);
         }
 

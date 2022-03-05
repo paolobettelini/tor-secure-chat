@@ -55,9 +55,9 @@ public class TerminalApplication {
     }
 
     void clear() {
-        System.out.print("\033[H\033[2J");
-        System.out.flush();
-        System.out.println(title);
+        //System.out.print("\033[H\033[2J");
+        //System.out.flush();
+        //System.out.println(title);
     }
 
     void newLine() {

@@ -110,7 +110,7 @@ public class ChatView extends TerminalView {
         while (v.length() - pos > 0) {
             int remaining = v.length() - pos;
             int length = Math.min(remaining, thoThirds);
-            builder.append((left ? "" : " ".repeat(WIDTH - length))
+            builder.append((left ? " " : " ".repeat(WIDTH - length))
                 + v.substring(pos, pos += length));
             builder.append("\n\r");
         }

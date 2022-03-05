@@ -28,9 +28,11 @@ public class ChatDatabaseImpl implements ChatDatabase {
             sender_username VARCHAR(25),
             receiver_username VARCHAR(25),
             datetime DATETIME,
-            msg_key BLOB,
-            msg BLOB,
+            msg_key_receiver BLOB,
+            msg_receiver BLOB,
             msg_sig BLOB,
+            msg_key_sender BLOB,
+            msg_sender BLOB,
             FOREIGN KEY (sender_username)
                 REFERENCES user(username),
             FOREIGN KEY (receiver_username)
@@ -84,22 +86,18 @@ public class ChatDatabaseImpl implements ChatDatabase {
     @Override
     public void storeMessage(MessageData message) {
         PreparedStatement statement = database.prepareStatement(
-            "INSERT INTO message VALUES (?,?,?,?,?,?);");
-
+            "INSERT INTO message VALUES (?,?,?,?,?,?,?,?);");
+        System.out.println("Storing");
             try {
-            /*statement.setString(1, message.sender());
-            statement.setString(2, message.receiver());
-            statement.setTimestamp(3, new Timestamp(message.timestamp()));
-            statement.setBlob(4, database.createBlob(message.key()));
-            statement.setBlob(5, database.createBlob(message.message()));
-            statement.setBlob(6, database.createBlob(message.signature()));*/
-
             statement.setString(1, message.sender());
             statement.setString(2, message.receiver());
             statement.setTimestamp(3, new Timestamp(message.timestamp()));
-            statement.setBytes(4, message.key());
-            statement.setBytes(5, message.message());
+            statement.setBytes(4, message.keyForReceiver());
+            statement.setBytes(5, message.messageForReceiver());
             statement.setBytes(6, message.signature());
+
+            statement.setBytes(7, message.keyForSender());
+            statement.setBytes(8, message.messageForSender());
 
             statement.execute();
         } catch (SQLException e) {
@@ -119,11 +117,13 @@ public class ChatDatabaseImpl implements ChatDatabase {
                 String sender = result.getString(1);
                 String receiver = result.getString(2);
                 long timestamp = result.getTimestamp(3).getTime();
-                byte[] key = result.getBytes(4);
-                byte[] message = result.getBytes(5);
+                byte[] keyForReceiver = result.getBytes(4);
+                byte[] messageForReceiver = result.getBytes(5);
                 byte[] signature = result.getBytes(6);
+                byte[] keyForSender = result.getBytes(7);
+                byte[] messageForSender = result.getBytes(8);
                 
-                messages.add(new MessageData(sender, receiver, timestamp, key, message, signature));
+                messages.add(new MessageData(sender, receiver, timestamp, keyForReceiver, messageForReceiver, signature, keyForSender, messageForSender));
                 // TODO: limit amount of messages
                 // Packet to request older messages
             }

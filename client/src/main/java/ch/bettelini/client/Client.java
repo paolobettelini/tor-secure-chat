@@ -126,7 +126,7 @@ public abstract class Client extends Thread {
             return;
         }
 
-        onCode(Protocol.SUCCESSFUL_LOGIN_CODE);
+        //onCode(Protocol.SUCCESSFUL_LOGIN_CODE);
     }
 
     private void processServePublicKeyPacket(byte[] data) {
@@ -141,6 +141,25 @@ public abstract class Client extends Thread {
             return CompletableFuture.completedFuture(keysCache.get(username));
         }
 
+        // If request is already on the way
+        if (blockingMap.contains(username)) {
+            return CompletableFuture.supplyAsync(() -> {
+                try {
+                    while (true) {
+                        if (keysCache.containsKey(username)) {
+                            return keysCache.get(username);
+                        }
+
+                        Thread.sleep(25);
+                    }
+                } catch (InterruptedException e) {
+                    return null;
+                }
+            });
+        }
+
+        blockingMap.createQueue(username);
+
         // send request
         sendPacket(RequestPublicKeyPacket.create(username));
 
@@ -150,7 +169,7 @@ public abstract class Client extends Thread {
 
                 PublicKey key = Protocol.Crypto.getPublicKey(bytes);
                 
-                keysCache.put(username, key);
+                keysCache.putIfAbsent(username, key);
                 return key;
             } catch (InterruptedException e) {
                 e.printStackTrace();
@@ -166,16 +185,31 @@ public abstract class Client extends Thread {
         MessageData[] messages = packet.getMessages();
         
         for (MessageData message : messages) {
-            // Verify signature
-            retrievePublicKey(message.sender()).thenAccept(senderPublicKey -> {
-                if (!Protocol.Crypto.verify(message.message(), message.signature(), senderPublicKey)) {
+            if (message.sender().equals(username)) {
+                // I am the sender
+                // Check signature
+                if (!Protocol.Crypto.verify(message.messageForReceiver(), message.signature(), keyPair.getPublic())) {
+                    System.out.println("Bad signature1");
                     return;
                 }
-                
-                byte[] key = Protocol.Crypto.decryptAsimmetrically(message.key(), keyPair.getPrivate());
-                byte[] content = Protocol.Crypto.decryptSymmetrically(message.message(), key);
+                byte[] key = Protocol.Crypto.decryptAsimmetrically(message.keyForSender(), keyPair.getPrivate());
+                byte[] content = Protocol.Crypto.decryptSymmetrically(message.messageForSender(), key);
                 onMessage(message.sender(), message.receiver(), new String(content), message.timestamp());
-            });
+            } else {
+                retrievePublicKey(message.sender()).thenAccept(senderPublicKey -> {
+                    // Check signature
+                    if (!Protocol.Crypto.verify(message.messageForReceiver(), message.signature(), senderPublicKey)) {
+                        System.out.println("Bad signatur2e for " + message.sender());
+                        return;
+                    }
+    
+                    byte[] key = Protocol.Crypto.decryptAsimmetrically(message.keyForReceiver(), keyPair.getPrivate());
+                    byte[] content = Protocol.Crypto.decryptSymmetrically(message.messageForReceiver(), key);
+                
+                    onMessage(message.sender(), message.receiver(), new String(content), message.timestamp());
+                });
+
+            }
         }
     }
 
@@ -233,16 +267,20 @@ public abstract class Client extends Thread {
         }
 
         retrievePublicKey(receiver).thenAccept(receiverPublicKey -> {
-            byte[] randomPassword = Protocol.Crypto.generateSecurePassword();
-            byte[] encryptedKey = Protocol.Crypto.encryptAsimmetrically(randomPassword, receiverPublicKey);
-            byte[] encryptedMessage = Protocol.Crypto.encryptSymmetrically(message.getBytes(), randomPassword);
-            byte[] signature = Protocol.Crypto.sign(encryptedMessage, keyPair.getPrivate());
-            sendSendMessagePacket(receiver, encryptedKey, encryptedMessage, signature);
+            byte[] randomPassword1 = Protocol.Crypto.generateSecurePassword();
+            byte[] randomPassword2 = Protocol.Crypto.generateSecurePassword();
+            byte[] encryptedKeyForReceiver = Protocol.Crypto.encryptAsimmetrically(randomPassword1, receiverPublicKey);
+            byte[] encryptedMessageForReceiver = Protocol.Crypto.encryptSymmetrically(message.getBytes(), randomPassword1);
+            byte[] signature = Protocol.Crypto.sign(encryptedMessageForReceiver, keyPair.getPrivate());
+            byte[] encryptedKeyForSender = Protocol.Crypto.encryptAsimmetrically(randomPassword2, keyPair.getPublic());
+            byte[] encryptedMessageForSender = Protocol.Crypto.encryptSymmetrically(message.getBytes(), randomPassword2);
+
+            sendSendMessagePacket(receiver, encryptedKeyForReceiver, encryptedMessageForReceiver, signature, encryptedKeyForSender, encryptedMessageForSender);
         });
     }
 
-    private void sendSendMessagePacket(String receiver, byte[] key, byte[] message, byte[] signature) {
-        sendPacket(SendMessagePacket.create(receiver, key, message, signature));
+    private void sendSendMessagePacket(String receiver, byte[] keyForReceiver, byte[] messageForReceiver, byte[] signature, byte[] keyForSender, byte[] messageForSender) {
+        sendPacket(SendMessagePacket.create(receiver, keyForReceiver, messageForReceiver, signature, keyForSender, messageForSender));
     }
 
     public CompletableFuture<String> getChatFingerprint(String interlocutor) {

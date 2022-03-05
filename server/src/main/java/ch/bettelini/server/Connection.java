@@ -103,12 +103,14 @@ public class Connection extends Thread {
 
     private void processSendMessagePacket(byte[] data) {
         if (!authenticated) {
+            System.out.println("NOT AUTH");
             return; // not logged in
         }
 
         SendMessagePacket packet = new SendMessagePacket(data);
 
         if (packet.getReceiver().equals(username)) {
+            System.out.println("Writing to yourself buddy?");
             return;
         }
 
@@ -117,7 +119,7 @@ public class Connection extends Thread {
             return;
         }
 
-        MessageData message = new MessageData(username, packet.getReceiver(), System.currentTimeMillis(), packet.getKey(), packet.getMessage(), packet.getSignature());
+        MessageData message = new MessageData(username, packet.getReceiver(), System.currentTimeMillis(), packet.getKeyForReceiver(), packet.getMessageForReceiver(), packet.getSignature(), packet.getKeyForSender(), packet.getMessageForSender());
 
         // Try to contact
         server.forwardPacket(ServeMessagesPacket.create(message), packet.getReceiver());
@@ -176,17 +178,33 @@ public class Connection extends Thread {
             try {
                 client.close();
             } catch (IOException e) {}
-            System.out.println("False signature");
+            System.out.println("Wrong signature");
             return;
         }
 
-        authenticated = true;
+        authenticate();
 
         // send messages
         MessageData[] messages = server.databaseManager.getMessagesFor(username);
         System.out.println("Messages to send; " + messages.length);
+        // TODO read db piece by piece
+        
         if (messages.length != 0) {
-            sendPacket(ServeMessagesPacket.create(messages));
+            // MAX 3 at a time
+            final int N = 3;
+            int remaining = messages.length;
+
+            while (remaining > 0) {
+                int amount = Math.min(N, remaining);
+                
+                MessageData[] group = new MessageData[amount];
+                for (int j = 0; j < group.length; j++) {
+                    group[j] = messages[j + messages.length - remaining];
+                }
+
+                sendPacket(ServeMessagesPacket.create(group));
+                remaining -= amount;
+            }
         }
     }
 
@@ -204,6 +222,8 @@ public class Connection extends Thread {
         }
 
         login(packet.getUsername());
+
+        authenticate();
         
         // send key
         server.databaseManager.registerUser(username, packet.getPassword(), packet.getPublicKey(), packet.getPrivateKey());
@@ -222,6 +242,12 @@ public class Connection extends Thread {
 
         this.username = username;
         server.addUser(username, this); // notify server
+    }
+
+    private void authenticate() {
+        authenticated = true;
+        // TODO: Rename to StatusCodePacket
+        sendPacket(ErrorPacket.create(Protocol.SUCCESSFUL_LOGIN_CODE));
     }
 
 }
