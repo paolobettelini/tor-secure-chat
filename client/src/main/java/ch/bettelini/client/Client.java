@@ -28,6 +28,15 @@ import java.util.concurrent.ExecutionException;
 
 public abstract class Client extends Thread {
 
+    // Protocol codes mirror for application usage
+    public static final byte CONNECTION_ERROR              = Protocol.CONNECTION_ERROR;
+    public static final byte USER_NOT_FOUND_ERROR          = Protocol.USER_NOT_FOUND_ERROR;
+    public static final byte USERNAME_ALREADY_EXISTS_ERROR = Protocol.USERNAME_ALREADY_EXISTS_ERROR;
+    public static final byte WRONG_PASSWORD_ERROR          = Protocol.WRONG_PASSWORD_ERROR;
+    public static final byte ALREADY_LOGGED_ERROR          = Protocol.ALREADY_LOGGED_ERROR;
+    public static final byte SUCCESSFUL_LOGIN_CODE         = Protocol.SUCCESSFUL_LOGIN_CODE;
+    public static final byte INVALID_USERNAME              = Protocol.INVALID_USERNAME;
+
     // Connection
     private String address;
     private int port;
@@ -58,7 +67,6 @@ public abstract class Client extends Thread {
 
     @Override
     public void run() {
-        System.out.println("CONNECTING");
         try (Socket socket = new Socket(address, port)) {
             in = new PacketInputStream(socket.getInputStream());
             out = new PacketOutputStream(socket.getOutputStream());
@@ -115,7 +123,6 @@ public abstract class Client extends Thread {
         this.keyPair = new KeyPair(publicKey, privateKey);
         
         if (!Protocol.Crypto.isKeyPairValid(keyPair)) {
-            System.out.println("Invalid key pair! The server might be trying a MITM attack");            
             return;
         }
 
@@ -191,6 +198,11 @@ public abstract class Client extends Thread {
     }
 
     public void register(String username, String password) {
+        if (!Protocol.isUsernameValid(username)) {
+            onCode(Protocol.INVALID_USERNAME);
+            return;
+        }
+        
         KeyPair pair = Protocol.Crypto.generateKeyPair();
 
         byte[] passwordBytes = password.getBytes();
@@ -248,6 +260,10 @@ public abstract class Client extends Thread {
 
     public KeyPair getKeyPair() {
         return keyPair;
+    }
+
+    public static boolean isUsernameValid(String username) {
+        return Protocol.isUsernameValid(username);
     }
 
 }

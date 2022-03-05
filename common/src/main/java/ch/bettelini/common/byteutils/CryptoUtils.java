@@ -47,7 +47,7 @@ public class CryptoUtils {
             //sha256Digest = new SHA256Digest();
 
             aesCipher = Cipher.getInstance("AES/CBC/PKCS5PADDING");
-            rsaCipher = Cipher.getInstance("RSA", "BC");
+            rsaCipher = Cipher.getInstance("RSA"/*, "BC"*/);
 
             rsaGenerator = KeyPairGenerator.getInstance("RSA");
             rsaGenerator.initialize(4096);
@@ -56,7 +56,7 @@ public class CryptoUtils {
             rsaSignature = Signature.getInstance("SHA256withRSA");
             secureRandom = new SecureRandom();
             //secureRandom = SecureRandom.getInstance("SHA1PRNG", "SUN");
-        } catch (NoSuchAlgorithmException | NoSuchPaddingException | NoSuchProviderException e) {
+        } catch (NoSuchAlgorithmException | NoSuchPaddingException e) {
             e.printStackTrace();
         }
     }

@@ -198,6 +198,7 @@ public class Connection extends Thread {
         }
     
         if (!Protocol.isUsernameValid(packet.getUsername())) {
+            System.out.println("INVALID USERNAME");
             return;
         }
 
@@ -209,7 +210,6 @@ public class Connection extends Thread {
         this.publicKey = Protocol.Crypto.getPublicKey(packet.getPublicKey());
 
         // send user data as confirmation
-        System.out.println("sending data to user");
         sendPacket(ServeKeyPairPacket.create(packet.getPublicKey(), packet.getPrivateKey()));
     }
 

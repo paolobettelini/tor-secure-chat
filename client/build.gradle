@@ -1,16 +1,5 @@
 plugins {
-    id 'application'
-}
-
-jar {
-    manifest {
-        attributes 'Main-Class': 'ch.bettelini.client.Main'
-    }
-
-    from {
-        duplicatesStrategy(DuplicatesStrategy.EXCLUDE)
-        configurations.runtimeClasspath.collect { it.isDirectory() ? it : zipTree(it) }
-    }
+    id 'java'
 }
 
 repositories {
@@ -23,8 +12,4 @@ repositories {
 dependencies {
     implementation project(':common')
     implementation project(':protocol')
-}
-
-application {
-    mainClass = 'ch.bettelini.client.Main'
 }

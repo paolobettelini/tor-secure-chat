@@ -1,7 +1,5 @@
 package ch.bettelini.server;
 
-//import ch.bettelini.protocol.database.DatabaseConnection;
-
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.util.HashMap;
@@ -22,7 +20,7 @@ public class Server extends Thread {
     public Server(int port) {
         this.port = port;
         this.users = new HashMap<>();
-        this.databaseManager = new ChatDatabaseImpl(databaseName);
+        this.databaseManager = new ChatDatabaseImpl(databaseName + ".db");
     }
 
     @Override
@@ -58,9 +56,6 @@ public class Server extends Thread {
 
             if (sent &= user.isAuthenticated()) {
                 users.get(receiver).sendPacket(packet);
-                System.out.println("Forwarding message ");
-            } else {
-                System.out.println("Not forwaring :)");
             }
         }
 

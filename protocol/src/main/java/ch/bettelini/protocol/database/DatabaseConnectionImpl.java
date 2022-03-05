@@ -80,6 +80,7 @@ public class DatabaseConnectionImpl implements DatabaseConnection {
 
     @Override
     public Blob createBlob(byte[] data) {
+        // SQLFeatureNotSupportedException
         try {
             Blob blob = connection.createBlob();
             blob.setBytes(1, data);

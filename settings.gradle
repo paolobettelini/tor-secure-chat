@@ -1,2 +1,2 @@
 rootProject.name = 'secure-chat'
-include('client', 'common', 'protocol', 'server')
+include('client', 'common', 'protocol', 'server', 'app')

@@ -28,6 +28,7 @@ public class Protocol {
     public static final byte WRONG_PASSWORD_ERROR          = 3;
     public static final byte ALREADY_LOGGED_ERROR          = 4;
     public static final byte SUCCESSFUL_LOGIN_CODE         = 6;
+    public static final byte INVALID_USERNAME              = 7;
 
     private static final String PATTERN = "^[a-zA-Z0-9]([-_.]|[a-zA-Z0-9]){4,24}$";
     private static Pattern pattern;
@@ -47,19 +48,19 @@ public class Protocol {
         }
         
         public static PublicKey getPublicKey(byte[] publicKey) {
-            return getPublicKey(publicKey);
+            return CryptoUtils.getPublicKey(publicKey);
         }
 
         public static PrivateKey getPrivateKey(byte[] privateKey) {
-            return getPrivateKey(privateKey);
+            return CryptoUtils.getPrivateKey(privateKey);
         }
 
         public static boolean isKeyPairValid(KeyPair keyPair) {
-            return isKeyPairValid(keyPair);
+            return CryptoUtils.isKeyPairValid(keyPair);
         }
 
         public static KeyPair generateKeyPair() {
-            return generateKeyPair();
+            return CryptoUtils.generateKeyPair();
         }
     
         public static byte[] salt(byte[] password, byte[] username) {

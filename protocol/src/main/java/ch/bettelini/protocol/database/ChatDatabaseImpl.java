@@ -13,7 +13,6 @@ import ch.bettelini.common.byteutils.UserData;
 public class ChatDatabaseImpl implements ChatDatabase {
     
     private DatabaseConnection database;
-    private String name;
 
     private static final String TABLE1 = """
         CREATE TABLE IF NOT EXISTS user (
@@ -41,16 +40,18 @@ public class ChatDatabaseImpl implements ChatDatabase {
 
     public ChatDatabaseImpl(String name) {
         this.database = new DatabaseConnectionImpl(name);
-
-        database.execute(TABLE1);
-        database.execute(TABLE2);
+        
+        if (database.connect()) {
+            database.execute(TABLE1);
+            database.execute(TABLE2);
+        }
     }
 
     @Override
     public boolean isUsernameInUse(String username) {
         ResultSet result = database.query("SELECT username FROM user WHERE username='" + username + "' LIMIT 1;");
         try {
-            return result.first();
+            return result.next();
         } catch (SQLException e) {
             e.printStackTrace();
         }
@@ -64,10 +65,15 @@ public class ChatDatabaseImpl implements ChatDatabase {
             "INSERT INTO user VALUES (?,?,?,?);");
 
         try {
-            statement.setString(1, username);
+          /*statement.setString(1, username);
             statement.setBlob(2, database.createBlob(password));
             statement.setBlob(3, database.createBlob(publicKey));
-            statement.setBlob(4, database.createBlob(privateKey));
+            statement.setBlob(4, database.createBlob(privateKey));*/
+
+            statement.setString(1, username);
+            statement.setBytes(2, password);
+            statement.setBytes(3, publicKey);
+            statement.setBytes(4, privateKey);
 
             statement.execute();
         } catch (SQLException e) {
@@ -81,12 +87,19 @@ public class ChatDatabaseImpl implements ChatDatabase {
             "INSERT INTO message VALUES (?,?,?,?,?,?);");
 
         try {
-            statement.setString(1, message.sender());
+            /*statement.setString(1, message.sender());
             statement.setString(2, message.receiver());
             statement.setTimestamp(3, new Timestamp(message.timestamp()));
             statement.setBlob(4, database.createBlob(message.key()));
             statement.setBlob(5, database.createBlob(message.message()));
-            statement.setBlob(6, database.createBlob(message.signature()));
+            statement.setBlob(6, database.createBlob(message.signature()));*/
+
+            statement.setString(1, message.sender());
+            statement.setString(2, message.receiver());
+            statement.setTimestamp(3, new Timestamp(message.timestamp()));
+            statement.setBytes(4, message.key());
+            statement.setBytes(5, message.message());
+            statement.setBytes(6, message.signature());
 
             statement.execute();
         } catch (SQLException e) {
@@ -112,7 +125,7 @@ public class ChatDatabaseImpl implements ChatDatabase {
                 messages.add(new MessageData(sender, receiver, timestamp, key, message, signature));
             }
 
-            if (clear) {
+            if (clear) { // TODO
                 database.execute("DELETE FROM message WHERE receiver_username='" + username + "';");
             }
 
@@ -129,7 +142,7 @@ public class ChatDatabaseImpl implements ChatDatabase {
         ResultSet result = database.query("SELECT pass, pub_key, priv_key FROM user WHERE username='" + username + "' LIMIT 1;");
         
         try {
-            if (!result.first()) {
+            if (!result.next()) {
                 return null;
             }
             
