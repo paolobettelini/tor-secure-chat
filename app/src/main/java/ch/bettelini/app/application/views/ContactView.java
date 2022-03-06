@@ -1,5 +1,6 @@
 package ch.bettelini.app.application.views;
 
+import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.LinkedList;
 import java.util.List;
@@ -10,13 +11,19 @@ import ch.bettelini.app.application.ChatBinding;
 import ch.bettelini.app.application.Message;
 import ch.bettelini.app.terminal.TerminalView;
 
+/*
+TODO:
+fingerprint is null after you register
+when you register messages are double
+*/
+
 public class ContactView extends TerminalView {
 
     private ChatBinding client;
 
     private ChatView chatView;
 
-    private Map<String, List<Message>> contacts;
+    private Map<String, ContactData> contacts;
 
     private boolean newUser = true;
 
@@ -51,11 +58,19 @@ public class ContactView extends TerminalView {
 
     private Consumer<Message> onMessage = message -> {
         if (message.sender().equals(client.getUsername())) {
-            contacts.putIfAbsent(message.receiver(), new LinkedList<>());
-            contacts.get(message.receiver()).add(message);
+            if (!contacts.containsKey(message.receiver())) {
+                ContactData data = new ContactData();
+                computeFingerprint(data, message.receiver());
+                contacts.put(message.receiver(), data);
+            }
+            contacts.get(message.receiver()).addMessage(message);
         } else {
-            contacts.putIfAbsent(message.sender(), new LinkedList<>());
-            contacts.get(message.sender()).add(message);
+            if (!contacts.containsKey(message.sender())) {
+                ContactData data = new ContactData();
+                computeFingerprint(data, message.sender());
+                contacts.put(message.sender(), data);
+            }
+            contacts.get(message.sender()).addMessage(message);
         }
 
         // Update if chatView is visible and has the same sender
@@ -66,7 +81,7 @@ public class ContactView extends TerminalView {
     };
 
     private Consumer<Message> onMessageSent = message -> {
-        contacts.get(message.receiver()).add(message);
+        contacts.get(message.receiver()).addMessage(message);
         super.update(chatView);
     };
 
@@ -116,9 +131,11 @@ public class ContactView extends TerminalView {
             int i = 0;
             for (String contact : contacts.keySet()) {
                 if (i++ == index) {
+                    var data = contacts.get(contact);
                     chatView.setReceiver(client.getUsername());
                     chatView.setSender(contact);
-                    chatView.setMessages(contacts.get(contact));
+                    chatView.setMessages(data.getMessages());
+                    chatView.setFingerprint(data.getFingerprint());
                     super.setView(chatView, this);
                     return;
                 }
@@ -132,10 +149,17 @@ public class ContactView extends TerminalView {
             return;
         }
 
-        contacts.putIfAbsent(input, new LinkedList<>());
+        if (!contacts.containsKey(input)) {
+            ContactData data = new ContactData();
+            computeFingerprint(data, input);
+            contacts.put(input, data);
+        }
+
+        var data = contacts.get(input);
         chatView.setReceiver(client.getUsername());
         chatView.setSender(input);
-        chatView.setMessages(contacts.get(input));
+        chatView.setMessages(data.getMessages());
+        chatView.setFingerprint(data.getFingerprint());
         super.setView(chatView, this);
     }
 
@@ -165,6 +189,40 @@ public class ContactView extends TerminalView {
         newUser = true;
         client.removeMessageListener(onMessage);
         client.removeStatusCodeListener(onStatusCode);
+    }
+
+    private void computeFingerprint(ContactData data, String username) {
+        client.getChatFingerprint(username).thenAccept(fingerprint -> {
+            data.setFingerprint(fingerprint);
+        });
+    }
+
+    private static class ContactData {
+        
+        private List<Message> messages = new LinkedList<>();
+
+        private String fingerprint;
+        
+        //private int unread;
+
+        public List<Message> getMessages() {
+            return messages;
+        }
+
+        public void setFingerprint(String fingerprint) {
+            this.fingerprint = fingerprint;
+        }
+
+        public String getFingerprint() {
+            return fingerprint;
+        }
+
+        public void addMessage(Message message) {
+            messages.add(message);
+
+            Collections.sort(messages);
+        }
+
     }
 
 }

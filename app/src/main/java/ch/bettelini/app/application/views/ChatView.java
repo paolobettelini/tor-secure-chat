@@ -17,6 +17,8 @@ public class ChatView extends TerminalView {
     private String sender;
     private String receiver; // me
 
+    private String fingerprint;
+
     private ChatBinding client;
 
     private List<Consumer<Message>> messageSentListeners = new LinkedList<>();
@@ -41,6 +43,10 @@ public class ChatView extends TerminalView {
         this.client = client;
     }
 
+    public void setFingerprint(String fingerprint) {
+        this.fingerprint = fingerprint;
+    }
+
     public String getSender() {
         return sender;
     }
@@ -60,7 +66,7 @@ public class ChatView extends TerminalView {
     @Override
     protected void render() {
         super.clear();
-        super.println("\t[" + sender + "]");
+        super.println("\t[" + sender + "] - " + fingerprint);
         super.newLine();
         for (Message message : messages) {
             super.print(format(message.message(), !message.sender().equals(receiver)));
