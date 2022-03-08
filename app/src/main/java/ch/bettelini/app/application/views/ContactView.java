@@ -51,38 +51,46 @@ public class ContactView extends TerminalView {
         super.newLine();
         int i = 0;
         for (String contact : contacts.keySet()) {
-            super.println("\t" + i++ + ". " + contact);
+            int unread = contacts.get(contact).getUnread();
+            super.println("\t" + i++ + ". " + contact + (unread != 0 ? " [" + unread + "]" : ""));
         }
         printCursor();
     }
 
     private Consumer<Message> onMessage = message -> {
+        ContactData data; // TODO: simplify spaghetti code
         if (message.sender().equals(client.getUsername())) {
             if (!contacts.containsKey(message.receiver())) {
-                ContactData data = new ContactData();
-                computeFingerprint(data, message.receiver());
+                data = new ContactData();
+                computeFingerprint(data, message.receiver(), chatView);
                 contacts.put(message.receiver(), data);
+            } else {
+                data = contacts.get(message.receiver());
             }
-            contacts.get(message.receiver()).addMessage(message);
         } else {
             if (!contacts.containsKey(message.sender())) {
-                ContactData data = new ContactData();
-                computeFingerprint(data, message.sender());
+                data = new ContactData();
+                computeFingerprint(data, message.sender(), chatView);
                 contacts.put(message.sender(), data);
+            } else {
+                data = contacts.get(message.sender());
             }
-            contacts.get(message.sender()).addMessage(message);
         }
+        data.addMessage(message);
 
-        // Update if chatView is visible and has the same sender
-        if (message.sender().equals(chatView.getSender())) {
-            super.update(chatView);
+        // Update chatView if it is visible and has the same sender
+        // Otherwise try to update this view
+        if (!message.sender().equals(chatView.getSender()) || !super.updateIfCurrent(chatView)) {
+            // Mark as unread
+            data.incrementUnread();
+
+            super.updateIfCurrent(this);
         }
-        super.update(this);
     };
 
     private Consumer<Message> onMessageSent = message -> {
         contacts.get(message.receiver()).addMessage(message);
-        super.update(chatView);
+        super.updateIfCurrent(chatView);
     };
 
     private Consumer<Integer> onStatusCode = code -> {
@@ -136,6 +144,7 @@ public class ContactView extends TerminalView {
                     chatView.setSender(contact);
                     chatView.setMessages(data.getMessages());
                     chatView.setFingerprint(data.getFingerprint());
+                    data.resetUnread();
                     super.setView(chatView, this);
                     return;
                 }
@@ -149,17 +158,21 @@ public class ContactView extends TerminalView {
             return;
         }
 
+        ContactData data;
+
         if (!contacts.containsKey(input)) {
-            ContactData data = new ContactData();
-            computeFingerprint(data, input);
+            data = new ContactData();
+            computeFingerprint(data, input, chatView);
             contacts.put(input, data);
+        } else {
+            data = contacts.get(input);
         }
 
-        var data = contacts.get(input);
         chatView.setReceiver(client.getUsername());
         chatView.setSender(input);
         chatView.setMessages(data.getMessages());
         chatView.setFingerprint(data.getFingerprint());
+        data.resetUnread();
         super.setView(chatView, this);
     }
 
@@ -191,9 +204,21 @@ public class ContactView extends TerminalView {
         client.removeStatusCodeListener(onStatusCode);
     }
 
-    private void computeFingerprint(ContactData data, String username) {
+    /**
+     * Computes the fingerprint asynchronously and adds it to
+     * the given <code>ContactData</code> object.
+     * A <code>ChatView</code> is also passed to be updated after computing
+     * the fingerprint (if the view is visible).
+     * 
+     * @param data the <code>ContactData</code> object
+     * @param username the username of the interlocutor
+     * @param view the view to try to update
+     */
+    private void computeFingerprint(ContactData data, String username, ChatView view) {
         client.getChatFingerprint(username).thenAccept(fingerprint -> {
             data.setFingerprint(fingerprint);
+            view.setFingerprint(fingerprint);
+            super.updateIfCurrent(view);
         });
     }
 
@@ -203,7 +228,7 @@ public class ContactView extends TerminalView {
 
         private String fingerprint;
         
-        //private int unread;
+        private int unread;
 
         public List<Message> getMessages() {
             return messages;
@@ -221,6 +246,18 @@ public class ContactView extends TerminalView {
             messages.add(message);
 
             Collections.sort(messages);
+        }
+
+        public int getUnread() {
+            return unread;
+        }
+
+        public void incrementUnread() {
+            ++unread;
+        }
+
+        public void resetUnread() {
+            unread = 0;
         }
 
     }

@@ -13,17 +13,17 @@ public class PacketInputStream {
     }
 
     public synchronized byte[] nextPacket() throws IOException {
-        int b0 = in.read();
-        int b1 = in.read();
-        int b2 = in.read();
-        int b3 = in.read();
+        int b0 = ((byte) in.read()) & 0xFF;
+        int b1 = ((byte) in.read()) & 0xFF;
+        int b2 = ((byte) in.read()) & 0xFF;
+        int b3 = ((byte) in.read()) & 0xFF;
 
-        if (b3 == -1) {
+        int packetLength = b0 | (b1 << 8) | (b2 << 16) | (b3 << 24);
+
+        if (packetLength == -1) {
             hasEnded = true;
             return null;
         }
-        
-        int packetLength = b0 | (b1 << 8) | (b2 << 16) | (b3 << 24);
 
         //byte[] packet = in.readNBytes(packetLength);
         byte[] packet = new byte[packetLength];

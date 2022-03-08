@@ -44,7 +44,7 @@ public class Connection extends Thread {
             this.in = new PacketInputStream(client.getInputStream());
             this.out = new PacketOutputStream(client.getOutputStream());
 
-            System.out.println("Listening to new connection");
+            System.out.println("+ connection " + client.getRemoteSocketAddress().toString());
             while (!in.hasEnded()) {
                 byte[] packet = in.nextPacket();
 
@@ -56,7 +56,7 @@ public class Connection extends Thread {
             e.printStackTrace();
         }
 
-        System.out.println("No more listening connection");
+        System.out.println("- connection");
 
         if (username != null) {
             server.removeUser(username);
@@ -186,7 +186,6 @@ public class Connection extends Thread {
 
         // send messages
         MessageData[] messages = server.databaseManager.getMessagesFor(username);
-        System.out.println("Messages to send; " + messages.length);
         // TODO read db piece by piece
         
         if (messages.length != 0) {

@@ -21,6 +21,8 @@ public class ChatView extends TerminalView {
 
     private ChatBinding client;
 
+    private Object renderLock = new Object(); // avoid render concurrency
+
     private List<Consumer<Message>> messageSentListeners = new LinkedList<>();
 
     public ChatView(ChatBinding client) {
@@ -65,13 +67,15 @@ public class ChatView extends TerminalView {
 
     @Override
     protected void render() {
-        super.clear();
-        super.println("\t[" + sender + "] - " + fingerprint);
-        super.newLine();
-        for (Message message : messages) {
-            super.print(format(message.message(), !message.sender().equals(receiver)));
+        synchronized(renderLock) { // avoid concurrency
+            super.clear();
+            super.println("\t[" + sender + "] - " + (fingerprint == null ? "Computing..." : fingerprint) + "\t\t\tDigit \"exit\" to exit");
+            super.newLine();
+            for (Message message : messages) {
+                super.print(format(message.message(), !message.sender().equals(receiver)));
+            }
+            printCursor();
         }
-        printCursor();
     }
 
     @Override
@@ -90,7 +94,6 @@ public class ChatView extends TerminalView {
 
     @Override
     protected void onDisplay() {
-        // TODO Auto-generated method stub
         
     }
 

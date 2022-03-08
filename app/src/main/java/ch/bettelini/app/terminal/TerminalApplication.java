@@ -46,7 +46,7 @@ public class TerminalApplication {
         }
     }
 
-    public boolean update(TerminalView view) {
+    public boolean updateIfCurrent(TerminalView view) {
         if (currentView == view) {
             currentView.render();
         }

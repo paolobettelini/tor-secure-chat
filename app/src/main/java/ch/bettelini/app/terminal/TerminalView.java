@@ -56,8 +56,8 @@ public abstract class TerminalView {
         app.update();
     }
 
-    protected boolean update(TerminalView view) {
-        return app.update(view);
+    protected boolean updateIfCurrent(TerminalView view) {
+        return app.updateIfCurrent(view);
     }
 
 }

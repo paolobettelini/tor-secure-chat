@@ -29,6 +29,10 @@ public class Main {
 
                         yield builder.toString();
                     }
+                    case "stop" -> {
+                        System.exit(0);
+                        yield null;
+                    }
                     default -> """
                         Help:
                         ls\tprint all the connected users
